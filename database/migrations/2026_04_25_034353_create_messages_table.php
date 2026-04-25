@@ -12,9 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('messages', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('transaction_id')->constrained('transactions')->cascadeOnDelete();
-            $table->foreignId('sender_id')->constrained('users')->cascadeOnDelete();
+            $table->uuid('id')->primary();
+            $table->foreignUuid('transaction_id')->constrained('transactions')->cascadeOnDelete();
+            $table->foreignUuid('sender_id')->constrained('users')->cascadeOnDelete();
             $table->text('content');
             $table->string('type')->default('text');
             $table->boolean('is_read')->default(false);

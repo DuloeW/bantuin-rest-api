@@ -12,22 +12,22 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('transactions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('post_id')
+            $table->uuid('id')->primary();
+            $table->foreignUuid('post_id')
                     ->constrained('posts')
                     ->cascadeOnDelete();
-            $table->foreignId('offer_id')
+            $table->foreignUuid('offer_id')
                     ->nullable()
                     ->constrained('offers')
                     ->nullOnDelete();
-            $table->foreignId('requester_id')
+            $table->foreignUuid('requester_id')
                     ->constrained('users')
                     ->cascadeOnDelete();
-            $table->foreignId('helper_id')
+            $table->foreignUuid('helper_id')
                     ->constrained('users')
                     ->cascadeOnDelete();
             $table->decimal('final_price', 15, 2);
-            $table->enum('status', ['on_progress', 'completed', 'disputed', 'cancelled'])->default('on_progress');
+            $table->enum('status', ['pending', 'on_progress', 'completed', 'disputed', 'cancelled'])->default('pending');
             $table->timestamp('started_at')->nullable();
             $table->timestamp('completed_at')->nullable();  
             $table->timestamps();

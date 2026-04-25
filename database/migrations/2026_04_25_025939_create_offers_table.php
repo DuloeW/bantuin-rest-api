@@ -12,11 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('offers', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('post_id')
+            $table->uuid('id')->primary();
+            $table->foreignUuid('post_id')
                 ->constrained()
                 ->cascadeOnDelete();
-            $table->foreignId('helper_id')
+            $table->foreignUuid('helper_id')
                 ->constrained('users')
                 ->cascadeOnDelete();
             $table->decimal('offered_price', 15, 2);
