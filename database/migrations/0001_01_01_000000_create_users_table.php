@@ -28,7 +28,7 @@ return new class extends Migration
 
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->boolean('is_verified')->default(false);
-            $table->enum('status', ['active', 'inactive', 'banned'])->default('active');
+            $table->enum('status', ['pending', 'active', 'inactive', 'banned'])->default('pending');
             $table->rememberToken();
             $table->timestamps();
         });
