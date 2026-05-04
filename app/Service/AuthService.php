@@ -2,37 +2,32 @@
 namespace App\Service;
 
 use App\Models\User;
+use App\Traits\ServiceResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
+//TODO masih error di test postman, login dan register
 class AuthService
 {
+    use ServiceResponse;
+
     public function login(array $credentials)
     {
-        if(!Auth::attempt($credentials)) {
-            return [
-                'success' => false,
-                'code' => 400,
-                'message' => 'email or password is incorrect',
-                'data' => [],
-            ];
-        }
 
         $user = User::where('email', $credentials['email'])->first();
-    
+
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return $this->errorPayload('email or password is incorrect');
+        }
+
         $user->tokens()->delete();
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'login successful',
-            'data' => [
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ],
-        ];
+        return $this->successPayload([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ], 'login successful');
     }
 
     public function register(array $data)
@@ -46,14 +41,9 @@ class AuthService
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return [
-            'success' => true,
-            'code' => 201,
-            'message' => 'registration successful',
-            'data' => [
-                'access_token' => $token,
-                'token_type' => 'Bearer',
-            ],
-        ];
+        return $this->successPayload([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ], 'registration successful', 201);
     }
 }

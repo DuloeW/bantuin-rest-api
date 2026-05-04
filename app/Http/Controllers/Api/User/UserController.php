@@ -2,10 +2,11 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
 use App\Service\User\UserService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
+//TODO menentukan flow template response
 class UserController extends Controller
 {
     protected $userService;
@@ -17,27 +18,54 @@ class UserController extends Controller
 
     public function getAll()
     {
-        return response()->json($this->userService->getAllUsers());
+        $result = $this->userService->getAllUsers();
+        return response()->json($result, $result['code']);
     }
 
     public function getById($id)
     {
-        return response()->json($this->userService->getUserById($id));
+        $result = $this->userService->getUserById($id);
+
+        return response()->json($result, $result['code']);
     }
 
     public function getByFirstName($name)
     {
-        return response()->json($this->userService->getUserByFirstName($name));
+        $result = $this->userService->getUserByFirstName($name);
+
+        return response()->json($result, $result['code']);
     }
 
     public function getByLastName($name)
     {
-        return response()->json($this->userService->getUserByLastName($name));
+        $result = $this->userService->getUserByLastName($name);
+
+        return response()->json($result, $result['code']);
     }
 
-    public function update(Request $request, User $user)
+    public function update(Request $request)
     {
-        $data = $request->only(['first_name', 'last_name', 'email', 'password']);
-        return response()->json($this->userService->updateUser($user, $data));
+        $userId = $request->user()->id;
+        $data = $request->validate([
+            'first_name' => 'sometimes|required|string|max:255',
+            'last_name' => 'sometimes|required|string|max:255',
+            'email' => [
+                'sometimes',
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('users')->ignore($userId),
+            ],
+            'phone' => 'sometimes|required|string|max:20',
+            'province' => 'sometimes|required|string|max:255',
+            'district' => 'sometimes|required|string|max:255',
+            'sub_district' => 'sometimes|required|string|max:255',
+            'village' => 'sometimes|required|string|max:255',
+            'neighborhood_unit' => 'sometimes|required|string|max:255',
+        ]);
+
+        $result = $this->userService->updateUser($userId, $data);
+
+        return response()->json($result, $result['code']);
     }
 }

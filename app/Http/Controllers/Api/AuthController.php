@@ -27,10 +27,10 @@ class AuthController extends Controller
         $result = $this->authService->login($credentials);
 
         if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['data'], $result['code']);
+            return response()->json($result, $result['code']);
         }
 
-        return $this->successResponse($result['data'], $result['message'], $result['code']);
+        return response()->json($result, $result['code']);
     }
 
     public function register(Request $request)
@@ -45,9 +45,9 @@ class AuthController extends Controller
         $result = $this->authService->register($data);
 
         if (!$result['success']) {
-            return $this->errorResponse($result['message'], $result['data'], $result['code']);
+            return response()->json($result, $result['code']);
         }
 
-        return $this->successResponse($result['data'], $result['message'], $result['code']);
+        return response()->json($result, $result['code']);
     }
 }

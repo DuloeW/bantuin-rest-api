@@ -12,6 +12,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/{id}', [UserController::class, 'getById']);
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
-    Route::put('/users/{user}', [UserController::class, 'update']);
+    Route::put('/users', [UserController::class, 'update']);
 });
     

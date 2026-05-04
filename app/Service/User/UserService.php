@@ -1,73 +1,72 @@
 <?php
 namespace App\Service\User;
+
 use App\Models\User;
+use App\Traits\ServiceResponse;
+use Exception;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class UserService
 {
+    use ServiceResponse;
 
     public function getAllUsers()
     {
         $users = User::all();
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'users retrieved successfully',
-            'data' => $users,
-        ];
+
+        return $this->successPayload($users, 'users retrieved successfully');
     }
 
     public function getUserById($id)
     {
         $user = User::find($id);
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'user retrieved successfully',
-            'data' => $user,
-        ];
+
+        if (!$user) {
+            return $this->errorPayload('user not found', [], 404);
+        }
+
+        return $this->successPayload($user, 'user retrieved successfully');
     }
 
     public function getUserByFirstName($name)
     {
-        $user = User::findOrFail($name);
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'user retrieved successfully',
-            'data' => $user,
-        ];
+        $user = User::where('first_name', $name)->first();
+
+        if (!$user) {
+            return $this->errorPayload('user not found', [], 404);
+        }
+
+        return $this->successPayload($user, 'user retrieved successfully');
     }
 
     public function getUserByLastName($name)
     {
         $user = User::where('last_name', $name)->first();
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'user retrieved successfully',
-            'data' => $user,
-        ];
+
+        if (!$user) {
+            return $this->errorPayload('user not found', [], 404);
+        }
+
+        return $this->successPayload($user, 'user retrieved successfully');
     }
 
-    public function updateUser(User $user, array $data)
+    public function updateUser(string $id, array $data)
     {
-        $user->update($data);
-
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'user updated successfully',
-            'data' => $user,
-        ];
+        try {
+            $user = User::findOrFail($id);
+            $user->update($data);
+            return $this->successPayload($user, 'user updated successfully');
+        } catch (ModelNotFoundException $e) {
+            return $this->errorPayload('user not found', [], 404);
+        } catch (Exception $e) {
+            return $this->errorPayload('an error occurred while updating the user', [], 500);
+        }
     }
 
     public function deleteUser(User $user)
     {
         $user->delete();
-        return [
-            'success' => true,
-            'code' => 200,
-            'message' => 'user deleted successfully',
-        ];
+
+        return $this->successPayload([], 'user deleted successfully');
     }
 }
