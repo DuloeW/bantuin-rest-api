@@ -26,7 +26,7 @@ return new class extends Migration
             $table->decimal('final_price', 15, 2);
             $table->decimal('admin_fee', 15, 2);
             $table->decimal('total_price', 15, 2);
-            $table->datetimes('deadline');
+            $table->dateTime('deadline');
             $table->text('completion_notes')->nullable();
             $table->text('work_notes')->nullable();
             //sebelum bayar, status cancelled
