@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
 
 class Transaction extends Model
 {
@@ -32,4 +32,5 @@ class Transaction extends Model
     {
         return $this->belongsTo(Offer::class, 'offer_id');
     }
+
 }
