@@ -10,7 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ReportTransaction extends Model
 {
     use HasUuids;
+    use HasFactory;
     protected $guarded = [];
+
+    protected $casts = [
+        // SANGAT PENTING untuk Filament: Karena tadi di FileUpload kita pakai ->multiple(),
+        // Filament akan menyimpan path file dalam bentuk array/JSON di database.
+        'evidence_files' => 'array', 
+    ];
 
     public function transaction()
     {
