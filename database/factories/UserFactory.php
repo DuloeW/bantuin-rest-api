@@ -23,15 +23,25 @@ class UserFactory extends Factory
      * @return array<string, mixed>
      */
     public function definition(): array
-    {
-        return [
-            'name' => fake()->name(),
-            'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
-            'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
-        ];
-    }
+{
+    return [
+        'id' => \Illuminate\Support\Str::uuid(), // Meng-generate UUID
+        'first_name' => fake()->firstName(),
+        'last_name' => fake()->lastName(),
+        'email' => fake()->unique()->safeEmail(),
+        'phone' => fake()->numerify('08##########'), // Bikin nomor HP random
+        'password' => bcrypt('password'), // Biar gampang tes login, passwordnya 'password' semua
+        'role' => 'user', // Set otomatis sebagai user biasa
+        'province' => 'bali',
+        'district' => 'badung',
+        'sub_district' => 'kuta selatan',
+        'village' => 'jimbaran',
+        'neighborhood_unit' => '0',
+        'wallet_balance' => 0,
+        'is_verified' => 1,
+        'status' => 'active',
+    ];
+}
 
     /**
      * Indicate that the model's email address should be unverified.
