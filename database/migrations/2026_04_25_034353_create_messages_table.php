@@ -13,12 +13,19 @@ return new class extends Migration
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('transaction_id')->constrained('transactions')->cascadeOnDelete();
-            $table->foreignUuid('sender_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignUuid('offer_id')
+                ->constrained('offers')
+                ->cascadeOnDelete();
+            $table->foreignUuid('sender_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->foreignUuid('receiver_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
             $table->text('content');
             $table->string('type')->default('text');
+            // pengembangan
             $table->boolean('is_read')->default(false);
-            $table->string('file_url')->nullable();
             $table->timestamps();
         });
     }

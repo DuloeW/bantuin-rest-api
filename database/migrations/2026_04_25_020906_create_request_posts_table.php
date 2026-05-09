@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('post_requests', function (Blueprint $table) {
+        Schema::create('request_posts', function (Blueprint $table) {
             $table->foreignUuid('post_id')
                 ->constrained()
                 ->cascadeOnDelete()
@@ -19,6 +19,7 @@ return new class extends Migration
             $table->decimal('min_price', 15, 2);
             $table->decimal('max_price', 15, 2);
             $table->dateTime('deadline');
+            $table->string('method_service');
             $table->string('province');
             $table->string('regency');
             $table->string('district');
@@ -34,6 +35,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('post_requests');
+        Schema::dropIfExists('request_posts');
     }
 };

@@ -19,8 +19,13 @@ return new class extends Migration
             $table->foreignUuid('helper_id')
                 ->constrained('users')
                 ->cascadeOnDelete();
+            $table->foreignUuid('requester_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
+            $table->foreignUuid('initiated_by')
+                ->constrained('users')
+                ->cascadeOnDelete();
             $table->decimal('offered_price', 15, 2);
-            $table->text('message')->nullable();
             $table->enum('status', ['pending', 'accepted', 'rejected'])->default('pending');
             $table->timestamps();
         });

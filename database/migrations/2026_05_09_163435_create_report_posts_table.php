@@ -11,11 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('reports', function (Blueprint $table) {
+        Schema::create('report_posts', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->foreignUuid('transaction_id')->constrained('transactions')->cascadeOnDelete();
-            $table->foreignUuid('reporter_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignUuid('reported_id')->constrained('users')->cascadeOnDelete();
+            $table->foreignUuid('post_id')
+                ->constrained('posts')
+                ->cascadeOnDelete();
+            $table->foreignUuid('reporter_id')
+                ->constrained('users')
+                ->cascadeOnDelete();
             $table->string('reason_category');
             $table->text('description')->nullable();
             $table->string('evidence_file')->nullable();
@@ -29,6 +32,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('reports');
+        Schema::dropIfExists('report_posts');
     }
 };

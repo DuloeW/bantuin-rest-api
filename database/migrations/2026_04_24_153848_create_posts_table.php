@@ -22,9 +22,8 @@ return new class extends Migration
             $table->enum('type', ['request', 'service']);
             $table->string('title');
             $table->text('description');
-            $table->string('image')->nullable();
             $table->boolean('is_multiple')->default(false);
-            $table->enum('status', ['open', 'closed', 'archived'])->default('open');
+            $table->enum('status', ['open', 'closed'])->default('open');
             $table->timestamps();
         });
     }

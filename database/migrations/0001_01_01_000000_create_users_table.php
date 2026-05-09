@@ -24,8 +24,9 @@ return new class extends Migration
             $table->string('sub_district')->nullable();
             $table->string('village')->nullable();
             $table->string('neighborhood_unit')->nullable();
+            $table->string('photo_profile')->nullable();
+            $table->string('ktp_photo')->nullable();
             $table->decimal('wallet_balance', 15, 2)->default(0)->nullable();
-
             $table->enum('role', ['user', 'admin'])->default('user');
             $table->boolean('is_verified')->default(false);
             $table->enum('status', ['pending', 'active', 'inactive', 'banned'])->default('pending');
