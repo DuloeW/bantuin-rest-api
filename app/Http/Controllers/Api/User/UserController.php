@@ -43,6 +43,14 @@ class UserController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function getProfile(Request $request)
+    {
+        $loggedInUser = $request->user();
+        $user = $this->userService->getProfile($loggedInUser);
+
+        return response()->json($user, $user['code']);
+    }
+
     public function update(Request $request)
     {
         $userId = $request->user()->id;

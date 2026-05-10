@@ -5,6 +5,9 @@ use App\Models\User;
 use App\Traits\ServiceResponse;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Sanctum\PersonalAccessToken;
 
 class UserService
 {
@@ -17,7 +20,7 @@ class UserService
         return $this->successPayload($users, 'users retrieved successfully');
     }
 
-    public function getUserById($id)
+    public function getUserById(string $id)
     {
         $user = User::find($id);
 
@@ -28,7 +31,7 @@ class UserService
         return $this->successPayload($user, 'user retrieved successfully');
     }
 
-    public function getUserByFirstName($name)
+    public function getUserByFirstName(string $name)
     {
         $user = User::where('first_name', $name)->first();
 
@@ -39,7 +42,7 @@ class UserService
         return $this->successPayload($user, 'user retrieved successfully');
     }
 
-    public function getUserByLastName($name)
+    public function getUserByLastName(string $name)
     {
         $user = User::where('last_name', $name)->first();
 
@@ -48,6 +51,10 @@ class UserService
         }
 
         return $this->successPayload($user, 'user retrieved successfully');
+    }
+
+    public function getProfile(User $user) {
+        return $this->successPayload($user, 'profile retrieved successfully');
     }
 
     public function updateUser(string $id, array $data)
