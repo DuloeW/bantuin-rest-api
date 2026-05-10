@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('images', function (Blueprint $table) {
+        Schema::create('banners', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('url');
-            $table->string('file_type');
-            $table->string('file_name');
-            $table->morphs('imageable');
+            $table->string('title');
+            $table->string('image_url');
+            $table->integer('sort_order')->default(1);
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('ended_at')->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
     }
@@ -26,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('images');
+        Schema::dropIfExists('banners');
     }
 };
