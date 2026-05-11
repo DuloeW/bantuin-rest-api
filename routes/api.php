@@ -8,6 +8,9 @@ Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
 Route::middleware('auth:sanctum')->group(function () {
+    
+    Route::get('/users/profile', [UserController::class, 'getProfile']);
+    
     Route::get('/users', [UserController::class, 'getAll']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
