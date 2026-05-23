@@ -32,4 +32,9 @@ class Post extends Model
     {
         return $this->morphMany(Image::class, 'imageable');
     }
+
+    public function offers()
+    {
+        return $this->hasMany(Offer::class);
+    }
 }
