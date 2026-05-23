@@ -7,12 +7,12 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 #[Guarded([])]
-class Category extends Model
+class Image extends Model
 {
     use HasUuids;
-
-    public function posts()
+    
+    public function imageable()
     {
-        return $this->hasMany(Post::class);
+        return $this->morphTo();
     }
 }
