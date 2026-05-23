@@ -32,6 +32,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/categories/{id}', [CategoryController::class, 'delete']);
 
     Route::get('/posts', [PostController::class, 'getAll']);
+    Route::delete('/posts/{id}', [PostController::class, 'delete']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
     Route::post('/posts/offer', [PostController::class, 'createOffer']);
