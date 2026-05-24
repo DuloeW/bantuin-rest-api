@@ -44,7 +44,7 @@ class ServicePostService
             'district' => $data['district'],
             'village' => $data['village'],
             'address_details' => $data['address_details'],
-            'location' => DB::raw("ST_SRID(POINT({$longitude}, {$latitude}), 4326)"),
+            'location' => DB::raw("ST_GeomFromText('POINT($longitude $latitude)', 4326)"),
             'status' => ActiveOffEnum::ACTIVE->value,
         ]);
 
