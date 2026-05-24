@@ -3,7 +3,9 @@ namespace App\Service\Post;
 
 use App\Enum\TypePostEnum;
 use App\Models\Post;
+use App\Models\User;
 use App\Traits\ServiceResponse;
+use Illuminate\Support\Facades\DB;
 
 class PostService
 {
@@ -37,7 +39,7 @@ class PostService
 
     public function getTotalUserPosts()
     {
-        $user = auth()->guard('sanctum')->user();
+        $user = auth('sanctum')->user();
         $postCount = Post::where('user_id', $user->id)->count(); 
 
         return $this->successPayload(['count' => $postCount], 'total user posts retrieved successfully');
@@ -72,44 +74,74 @@ class PostService
 
     public function createRequestPost(array $data, array $uploadedImages)
     {
-        $typePost = TypePostEnum::from($data['type']);
-        $isMutiple = $typePost === TypePostEnum::SERVICE ? false : true;
+        return DB::transaction(function () use ($data, $uploadedImages) {
+            $typePost = TypePostEnum::from($data['type']);
+            $isMutiple = $typePost === TypePostEnum::REQUEST ? false : true;
+            $userId = auth('sanctum')->id();
 
-        $post = Post::create([
-            'user_id' => auth()->guard('sanctum')->id(),
-            'title' => $data['title'],
-            'type' => $typePost->value,
-            'description' => $data['description'],
-            'is_multiple' => $isMutiple,
-            'category_id' => $data['category_id'],
-        ]);
+            $user = User::where('id', $userId)->first();
 
-        $this->uploadImages($uploadedImages, $post);
+            $userHasSamePost = $user->posts()->where('type', TypePostEnum::REQUEST->value)
+                ->whereHas('requestDetail', function ($query) {
+                    $query->where('status', 'open');
+                })
+                ->where('title', $data['title'])
+                ->exists();
 
-        $post = $this->requestPostService->createRequestPostDetails($post, $data);
+            if($userHasSamePost) {
+                return $this->errorPayload('post title already exists', null, 422);
+            }
 
-        return $this->successPayload($post, 'post created successfully', 201);
+            $post = Post::create([
+                'user_id' => $userId,
+                'title' => $data['title'],
+                'type' => $typePost->value,
+                'description' => $data['description'],
+                'is_multiple' => $isMutiple,
+                'category_id' => $data['category_id'],
+            ]);
+
+            $this->uploadImages($uploadedImages, $post);
+
+            $post = $this->requestPostService->createRequestPostDetails($post, $data);
+            return $this->successPayload($post, 'request post created successfully', 201);
+        });
     }
 
     public function createServicePost(array $data, array $uploadedImages)
     {
-        $typePost = TypePostEnum::from($data['type']);
-        $isMutiple = $typePost === TypePostEnum::SERVICE ? false : true;
+        return DB::transaction(function () use ($data, $uploadedImages) {
+            $typePost = TypePostEnum::from($data['type']);
+            $isMutiple = $typePost === TypePostEnum::SERVICE ? true : false;
+            $userId = auth('sanctum')->id();
 
-        $post = Post::create([
-            'user_id' => auth()->guard('sanctum')->id(),
-            'title' => $data['title'],
-            'type' => $typePost->value,
-            'description' => $data['description'],
-            'is_multiple' => $isMutiple,
-            'category_id' => $data['category_id'],
-        ]);
+            $user = User::where('id', $userId)->first();
 
-        $this->uploadImages($uploadedImages, $post);
+            $userHasSamePost = $user->posts()->where('type', TypePostEnum::SERVICE->value)
+                ->whereHas('serviceDetail', function ($query) {
+                    $query->where('status', 'active');
+                })
+                ->where('title', $data['title'])
+                ->exists();
 
-        $post = $this->servicePostService->createServicePostDetails($post, $data);
+            if($userHasSamePost) {
+                return $this->errorPayload('post title already exists', null, 422);
+            }
 
-        return $this->successPayload($post, 'service post created successfully', 201);
+            $post = Post::create([
+                'user_id' => $userId,
+                'title' => $data['title'],
+                'type' => $typePost->value,
+                'description' => $data['description'],
+                'is_multiple' => $isMutiple,
+                'category_id' => $data['category_id'],
+            ]);
+
+            $this->uploadImages($uploadedImages, $post);
+
+            $post = $this->servicePostService->createServicePostDetails($post, $data);
+            return $this->successPayload($post, 'service post created successfully', 201);
+        });
     }
 
     public function deletePost(string $id)
