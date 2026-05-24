@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Service\Offer\HireHelperService;
 use App\Service\Offer\OfferHelpService;
 use App\Traits\ServiceResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class OfferController extends Controller
@@ -21,7 +22,7 @@ class OfferController extends Controller
         $this->hireHelperService = $hireHelperService;
     }
 
-    public function applyForJob(Request $request)
+    public function applyForJob(Request $request): JsonResponse
     {
         $data = $request->validate([
             'post_id' => 'required|exists:posts,id',
@@ -36,7 +37,7 @@ class OfferController extends Controller
         return response()->json($offer, $offer['code']);
     }
 
-    public function bookHelperService(Request $request)
+    public function bookHelperService(Request $request): JsonResponse
     {
         $data = $request->validate([
             'post_id' => 'required|exists:posts,id',
