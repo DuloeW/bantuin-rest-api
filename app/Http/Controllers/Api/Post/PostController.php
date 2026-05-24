@@ -49,7 +49,7 @@ class PostController extends Controller
             'title' => 'required|string|max:255',
             'type' => 'required|in:service,request',
             'description' => 'required|string',
-            'category_id' => 'required|uuid',
+            'category_id' => 'required|exists:categories,id',
             'min_price' => 'required_if:type,request|numeric',
             'max_price' => 'required_if:type,request|numeric|gte:min_price',
             'deadline' => 'required_if:type,request|date',
@@ -59,12 +59,12 @@ class PostController extends Controller
             'district' => 'required_if:type,request|string',    
             'village' => 'required_if:type,request|string',
             'address_details' => 'required_if:type,request|string',
-            'status' => 'required_if:type,request|in:open,closed',
             'images' => 'required|array|max:5',
             'images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
             'location' => 'required_if:type,request|array',
             'location.latitude' => 'required_if:type,request|numeric|between:-90,90',
             'location.longitude' => 'required_if:type,request|numeric|between:-180,180',
+            'published_until' => 'required_if:type,request|date|after:today',
         ]);
 
         $data = $request->all();
@@ -82,7 +82,7 @@ class PostController extends Controller
             'title' => 'required|string|max:255',
             'type' => 'required|in:service,request',
             'description' => 'required|string',
-            'category_id' => 'required|uuid',
+            'category_id' => 'required|exists:categories,id',
             'base_price' => 'required_if:type,service|numeric',
             'time_start' => 'required_if:type,service|date_format:H:i',
             'time_end' => 'required_if:type,service|date_format:H:i|after:time_start',
