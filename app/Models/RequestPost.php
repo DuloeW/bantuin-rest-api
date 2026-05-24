@@ -11,6 +11,12 @@ class RequestPost extends Model
     protected $appends = ['location_coordinate'];
     protected $hidden = ['location', 'longitude', 'latitude'];
 
+    protected $casts = [
+        'deadline' => 'datetime',
+        'published_at' => 'datetime',
+        'published_until' => 'datetime',
+    ];
+
     public function post()
     {
         return $this->belongsTo(Post::class);
