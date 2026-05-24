@@ -28,7 +28,6 @@ class AuthService
             'access_token' => $token,
             'token_type' => 'Bearer',
             'expires_in' => $expiredInMinutes / 60,
-            'user' => $user,
         ], 'login successful');
     }
 
