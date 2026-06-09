@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 class AuthController extends Controller
 {
 
-    protected $authService;
+    protected AuthService $authService;
 
     public function __construct(AuthService $authService) 
     {
@@ -17,18 +17,14 @@ class AuthController extends Controller
     }
 
 
-    public function login(Request $request)
+   public function login(Request $request)
     {
-        $credentials = $request->validate([
+        $request->validate([
             'email' => 'required|email',
             'password' => 'required',
         ]);
 
-        $result = $this->authService->login($credentials);
-
-        if (!$result['success']) {
-            return response()->json($result, $result['code']);
-        }
+        $result = $this->authService->login($request);
 
         return response()->json($result, $result['code']);
     }

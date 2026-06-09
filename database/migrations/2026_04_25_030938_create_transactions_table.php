@@ -28,6 +28,7 @@ return new class extends Migration
             $table->decimal('total_price', 15, 2);
             $table->dateTime('deadline');
             $table->text('completion_notes')->nullable();
+            $table->integer('max_revision')->default(2);
             $table->text('work_notes')->nullable();
             //sebelum bayar, status cancelled
             $table->enum('status', ['pending', 'on_progress', 'completed', 'disputed', 'cancelled'])->default('pending');

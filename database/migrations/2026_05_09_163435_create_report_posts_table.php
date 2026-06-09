@@ -21,7 +21,6 @@ return new class extends Migration
                 ->cascadeOnDelete();
             $table->string('reason_category');
             $table->text('description')->nullable();
-            $table->string('evidence_file')->nullable();
             $table->enum('status', ['pending', 'investigating', 'resolved'])->default('pending');
             $table->timestamps();
         });

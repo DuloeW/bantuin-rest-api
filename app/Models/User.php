@@ -17,7 +17,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
 #[Guarded([])]
-#[Hidden(['password', 'remember_token'])]
+#[Hidden(['password', 'remember_token', 'email_verified_at'])]
 class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasFactory, Notifiable, HasApiTokens, HasUuids;

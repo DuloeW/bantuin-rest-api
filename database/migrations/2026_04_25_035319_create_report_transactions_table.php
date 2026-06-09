@@ -18,7 +18,6 @@ return new class extends Migration
             $table->foreignUuid('reported_id')->constrained('users')->cascadeOnDelete();
             $table->string('reason_category');
             $table->text('description')->nullable();
-            $table->string('evidence_file')->nullable();
             $table->enum('status', ['pending', 'investigating', 'resolved'])->default('pending');
             $table->timestamps();
         });
