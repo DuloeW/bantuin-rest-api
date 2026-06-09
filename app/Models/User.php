@@ -65,7 +65,10 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Review::class, 'reviewed_id');
     }
 
-    
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
 
     public function getFilamentName(): string
     {
