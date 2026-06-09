@@ -36,5 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     
     Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
+
+    Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
 });
     
