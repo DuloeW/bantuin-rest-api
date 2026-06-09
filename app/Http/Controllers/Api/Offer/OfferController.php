@@ -50,4 +50,24 @@ class OfferController extends Controller
 
         return response()->json($offer, $offer['code']);
     }
+
+    public function acceptHelper(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'offer_id' => 'required|exists:offers,id',
+        ]);
+
+        $offer = $this->offerHelpService->acceptHelper($data['offer_id'], auth('sanctum')->id());
+
+        return response()->json($offer, $offer['code']);
+    }
+
+    public function getOffersForPost(string $postId): JsonResponse
+    {
+        $post = Post::findOrFail($postId);
+
+        $offers = $this->offerHelpService->getOffersForPost($post);
+
+        return response()->json($this->successPayload($offers), 200);
+    }
 }
