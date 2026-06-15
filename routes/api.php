@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Category\CategoryController;
+use App\Http\Controllers\Api\Message\MessageController;
 use App\Http\Controllers\Api\Offer\OfferController;
 use App\Http\Controllers\Api\Post\PostController;
 use App\Http\Controllers\Api\User\UserController;
@@ -38,5 +39,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
 
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
+
+    Route::post('/offers/{offerId}/messages', [MessageController::class, 'sendMessage']);
 });
     

@@ -30,4 +30,9 @@ class Offer extends Model
     {
         return $this->belongsTo(User::class, 'initiated_by');
     }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
 }
