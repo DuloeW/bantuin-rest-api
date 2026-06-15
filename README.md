@@ -56,3 +56,105 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## API Documentation
+
+Bagian ini menjelaskan endpoint yang tersedia pada aplikasi dan contoh cara menggunakannya.
+
+Base URL
+- Local (development): `http://localhost` (sesuaikan port dan host Anda, mis. `http://127.0.0.1:8000`)
+
+Headers Umum
+- `Content-Type: application/json` untuk request JSON.
+- `Authorization: Bearer <access_token>` untuk endpoint yang membutuhkan autentikasi (Sanctum token).
+
+Autentikasi
+- POST `/login` — Login pengguna.
+	- Body (JSON): `email`, `password`.
+	- Response: `access_token`, `token_type`, `expires_in`.
+- POST `/register` — Registrasi pengguna baru.
+	- Body (JSON): `first_name`, `last_name`, `email`, `password`, `password_confirmation`.
+	- Response: user data + `access_token`.
+
+Endpoint (butuh autentikasi setelah login)
+
+- Users
+	- GET `/users/profile` — Dapatkan profil pengguna yang sedang login.
+	- GET `/users` — Daftar semua pengguna.
+	- PUT `/users` — Update data pengguna (fields: `first_name`, `last_name`, `email`, `phone`, `province`, `district`, `sub_district`, `village`, `neighborhood_unit`).
+	- GET `/users/first-name/{name}` — Cari pengguna berdasarkan nama depan.
+	- GET `/users/last-name/{name}` — Cari pengguna berdasarkan nama belakang.
+	- GET `/users/{id}` — Dapatkan pengguna berdasarkan ID.
+
+- Categories
+	- GET `/categories` — Daftar kategori.
+	- POST `/categories` — Buat kategori baru. Body: `title` (required).
+	- GET `/categories/slug/{slug}` — Dapatkan kategori berdasarkan slug.
+	- GET `/categories/{id}` — Dapatkan kategori berdasarkan ID.
+	- DELETE `/categories/{id}` — Hapus kategori.
+
+- Posts
+	- GET `/posts` — Daftar semua posting.
+	- GET `/posts/total` — Total postingan per user (atau metrik terkait).
+	- POST `/posts/request` — Buat posting tipe `request`.
+		- Fields (ringkasan): `title`, `type` (`request`), `description`, `category_id`, `min_price`, `max_price`, `deadline`, `method_service`, `province`, `regency`, `district`, `village`, `address_details`, `images` (file[]), `location` (latitude/longitude), `published_until`.
+	- POST `/posts/service` — Buat posting tipe `service`.
+		- Fields (ringkasan): `title`, `type` (`service`), `description`, `category_id`, `base_price`, `time_start`, `time_end`, `portfolio_url` (opsional), `experience_years`, alamat, `status`, `images` (file[]), `location`.
+	- GET `/posts/request` — Ambil semua posting request dengan detail.
+	- GET `/posts/service` — Ambil semua posting service dengan detail.
+	- DELETE `/posts/{id}` — Hapus posting (body: `id` sebagai UUID).
+	- POST `/posts/apply` — Apply untuk job pada post. Body: `post_id`, `offered_price`.
+	- POST `/posts/book-helper` — Booking helper/service. Body: `post_id`, `offered_price`.
+
+- Offers
+	- GET `/offers/post/{postId}` — Dapatkan semua offer untuk sebuah post.
+
+- Messages
+	- POST `/offers/{offerId}/messages` — Kirim pesan terkait offer.
+		- Body: `content` (required), `type` (opsional, mis. `text`).
+
+Contoh Penggunaan (curl)
+
+- Login dan simpan token
+
+```bash
+curl -X POST http://localhost/api/login \
+	-H "Content-Type: application/json" \
+	-d '{"email":"user@example.com","password":"secret"}'
+```
+
+Response sukses contoh:
+
+```json
+{
+	"success": true,
+	"data": {
+		"access_token": "<TOKEN>",
+		"token_type": "Bearer",
+		"expires_in": 1440
+	}
+}
+```
+
+- Akses endpoint yang dilindungi (contoh: profile)
+
+```bash
+curl -X GET http://localhost/api/users/profile \
+	-H "Authorization: Bearer <TOKEN>" \
+	-H "Accept: application/json"
+```
+
+- Contoh membuat kategori
+
+```bash
+curl -X POST http://localhost/api/categories \
+	-H "Authorization: Bearer <TOKEN>" \
+	-H "Content-Type: application/json" \
+	-d '{"title":"Cleaning"}'
+```
+
+Catatan
+- Untuk endpoint yang menerima upload file (contoh: `images` pada pembuatan post), gunakan `multipart/form-data` dan kirim file melalui form field `images[]`.
+- Validasi dan format field lebih lengkap dapat dilihat di controller terkait (`app/Http/Controllers/Api/*`) dan service layer (`app/Service/*`).
+
+Jika Anda ingin, saya bisa menambahkan contoh request/response lengkap untuk endpoint tertentu (mis. membuat post `request`/`service`).
