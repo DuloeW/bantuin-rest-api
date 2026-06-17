@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\Post\PostController;
 use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Support\Facades\Route;
 
+//TODO: ubah beberapa endpoint dan juga beberapa nama file
+
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
@@ -30,9 +32,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts', [PostController::class, 'getAll']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
-    Route::post('/posts/service', [PostController::class, 'createService']);
+    Route::post('/posts/offer', [PostController::class, 'createService']);
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
-    Route::get('/posts/service', [PostController::class, 'getAllWithServiceDetails']);
+    Route::get('/posts/offer', [PostController::class, 'getAllWithServiceDetails']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
     
     Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
