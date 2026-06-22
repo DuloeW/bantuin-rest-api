@@ -6,8 +6,9 @@ use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Model;
 
 #[Guarded([])]
-class ServicePost extends Model
+class OfferPost extends Model
 {
+    protected $table = 'service_posts';
     protected $appends = ['location_coordinate'];
     protected $hidden = ['location', 'longitude', 'latitude'];
 

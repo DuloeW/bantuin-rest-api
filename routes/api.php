@@ -32,9 +32,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts', [PostController::class, 'getAll']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
-    Route::post('/posts/offer', [PostController::class, 'createService']);
+    Route::post('/posts/offer', [PostController::class, 'createOffer']);
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
-    Route::get('/posts/offer', [PostController::class, 'getAllWithServiceDetails']);
+    Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
     
     Route::post('/posts/apply', [OfferController::class, 'applyForJob']);

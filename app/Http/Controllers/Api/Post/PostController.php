@@ -36,9 +36,9 @@ class PostController extends Controller
         return response()->json($result, $result['code']);
     }
 
-    public function getAllWithServiceDetails()
+    public function getAllWithOfferDetails()
     {
-        $result = $this->postService->getAllPostsWithServiceDetails();
+        $result = $this->postService->getAllWithOfferDetails();
 
         return response()->json($result, $result['code']);
     }
@@ -47,7 +47,7 @@ class PostController extends Controller
     {
         $request->validate([
             'title' => 'required|string|max:255',
-            'type' => 'required|in:service,request',
+            'type' => 'required|in:offer,request',
             'description' => 'required|string',
             'category_id' => 'required|exists:categories,id',
             'min_price' => 'required_if:type,request|numeric',
@@ -76,47 +76,43 @@ class PostController extends Controller
         return response()->json($result, $result['code']);
     }
 
-    public function createService(Request $request)
+    public function createOffer(Request $request)
     {
        $request->validate([
             'title' => 'required|string|max:255',
-            'type' => 'required|in:service,request',
+            'type' => 'required|in:offer,request',
             'description' => 'required|string',
             'category_id' => 'required|exists:categories,id',
-            'base_price' => 'required_if:type,service|numeric',
-            'time_start' => 'required_if:type,service|date_format:H:i',
-            'time_end' => 'required_if:type,service|date_format:H:i|after:time_start',
+            'base_price' => 'required_if:type,offer|numeric',
+            'time_start' => 'required_if:type,offer|date_format:H:i',
+            'time_end' => 'required_if:type,offer|date_format:H:i|after:time_start',
             'portfolio_url' => 'sometimes|nullable|url',
-            'experience_years' => 'required_if:type,service|integer|min:0',
-            'province' => 'required_if:type,service|string',
-            'regency' => 'required_if:type,service|string',
-            'district' => 'required_if:type,service|string',    
-            'village' => 'required_if:type,service|string',
-            'address_details' => 'required_if:type,service|string',
-            'status' => 'required_if:type,service|in:active,inactive',
+            'experience_years' => 'required_if:type,offer|integer|min:0',
+            'province' => 'required_if:type,offer|string',
+            'regency' => 'required_if:type,offer|string',
+            'district' => 'required_if:type,offer|string',    
+            'village' => 'required_if:type,offer|string',
+            'address_details' => 'required_if:type,offer|string',
+            'status' => 'required_if:type,offer|in:active,inactive',
             'images' => 'required|array|max:5',
             'images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-            'location' => 'required_if:type,service|array',
-            'location.latitude' => 'required_if:type,service|numeric|between:-90,90',
-            'location.longitude' => 'required_if:type,service|numeric|between:-180,180',
+            'location' => 'required_if:type,offer|array',
+            'location.latitude' => 'required_if:type,offer|numeric|between:-90,90',
+            'location.longitude' => 'required_if:type,offer|numeric|between:-180,180',
         ]);
 
         $data = $request->all();
 
         $uploadedImages = $request->file('images');
 
-        $result = $this->postService->createServicePost($data, $uploadedImages);
+        $result = $this->postService->createOfferPost($data, $uploadedImages);
 
         return response()->json($result, $result['code']);
     }
 
-    public function delete(Request $request)
-    {
-        $request->validate([
-            'id' => 'required|uuid',
-        ]);
-
-        $result = $this->postService->deletePost($request->id);
+    public function delete(string $id)
+    {   
+        $result = $this->postService->deletePost($id);
 
         return response()->json($result, $result['code']);
     }
