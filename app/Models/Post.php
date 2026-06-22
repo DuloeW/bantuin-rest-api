@@ -18,9 +18,9 @@ class Post extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function serviceDetail()
+    public function offerDetail()
     {
-        return $this->hasOne(ServicePost::class);
+        return $this->hasOne(OfferPost::class);
     }
 
     public function requestDetail()

@@ -12,12 +12,12 @@ class PostService
     use ServiceResponse;
 
     protected RequestPostService $requestPostService;
-    protected ServicePostService $servicePostService;
+    protected OfferPostService $offerPostService;
 
-    public function __construct(RequestPostService $requestPostService, ServicePostService $servicePostService)
+    public function __construct(RequestPostService $requestPostService, OfferPostService $offerPostService)
     {
         $this->requestPostService = $requestPostService;
-        $this->servicePostService = $servicePostService;
+        $this->offerPostService = $offerPostService;
     }
 
 
@@ -28,7 +28,7 @@ class PostService
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province, regency, district, village, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
-            'serviceDetail' => function ($query) {
+            'offerDetail' => function ($query) {
                 $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province, regency, district, village, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
             'images',
@@ -58,17 +58,17 @@ class PostService
         return $this->successPayload($posts, 'posts with request details retrieved successfully');
     }
 
-    public function getAllPostsWithServiceDetails()
+    public function getAllWithOfferDetails()
     {
         $posts = Post::with([
             'category',
-            'serviceDetail' => function ($query) {
+            'offerDetail' => function ($query) {
                 $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province, regency, district, village, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
             'images',
         ])->get();
 
-        return $this->successPayload($posts, 'posts with service details retrieved successfully');
+        return $this->successPayload($posts, 'posts with offer details retrieved successfully');
     }
 
 
@@ -108,17 +108,17 @@ class PostService
         });
     }
 
-    public function createServicePost(array $data, array $uploadedImages)
+    public function createOfferPost(array $data, array $uploadedImages)
     {
         return DB::transaction(function () use ($data, $uploadedImages) {
             $typePost = TypePostEnum::from($data['type']);
-            $isMutiple = $typePost === TypePostEnum::SERVICE ? true : false;
+            $isMutiple = $typePost === TypePostEnum::OFFER ? true : false;
             $userId = auth('sanctum')->id();
 
             $user = User::where('id', $userId)->first();
 
-            $userHasSamePost = $user->posts()->where('type', TypePostEnum::SERVICE->value)
-                ->whereHas('serviceDetail', function ($query) {
+            $userHasSamePost = $user->posts()->where('type', TypePostEnum::OFFER->value)
+                ->whereHas('offerDetail', function ($query) {
                     $query->where('status', 'active');
                 })
                 ->where('title', $data['title'])
@@ -139,8 +139,8 @@ class PostService
 
             $this->uploadImages($uploadedImages, $post);
 
-            $post = $this->servicePostService->createServicePostDetails($post, $data);
-            return $this->successPayload($post, 'service post created successfully', 201);
+            $post = $this->offerPostService->createOfferPostDetails($post, $data);
+            return $this->successPayload($post, 'offer post created successfully', 201);
         });
     }
 
