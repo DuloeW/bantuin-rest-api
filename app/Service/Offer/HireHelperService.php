@@ -12,9 +12,9 @@ class HireHelperService
 
     public function bookHelperService(Post $post, array $data, string $requesterId)
     {
-        if ($post->type !== 'service') {
+        if ($post->type !== 'offer') {
             throw ValidationException::withMessages([
-                'post_id' => ['You can only book a helper service on a service post.']
+                'post_id' => ['You can only book a helper service on an offer post.']
             ]);
         }
 
@@ -34,7 +34,7 @@ class HireHelperService
             ]);
         }
 
-        $basePrice = $post->serviceDetail->base_price;
+        $basePrice = $post->offerDetail->base_price;
 
         if ($data['offered_price'] < $basePrice) {
             throw ValidationException::withMessages([
