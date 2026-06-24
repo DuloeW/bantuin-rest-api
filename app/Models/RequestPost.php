@@ -4,12 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Model;
+use Laravolt\Indonesia\Models\City;
+use Laravolt\Indonesia\Models\District;
+use Laravolt\Indonesia\Models\Province;
+use Laravolt\Indonesia\Models\Village;
 
 #[Guarded([])]
 class RequestPost extends Model
 {
     protected $appends = ['location_coordinate'];
-    protected $hidden = ['location', 'longitude', 'latitude'];
+    protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
 
     protected $casts = [
         'deadline' => 'datetime',
@@ -20,6 +24,26 @@ class RequestPost extends Model
     public function post()
     {
         return $this->belongsTo(Post::class);
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(Province::class, 'province_id');
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(City::class, 'city_id');
+    }
+
+    public function district()
+    {
+        return $this->belongsTo(District::class, 'district_id');
+    }
+
+    public function village()
+    {
+        return $this->belongsTo(Village::class, 'village_id');
     }
 
     public function getLocationCoordinateAttribute()
