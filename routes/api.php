@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Address\AddressController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\Category\CategoryController;
 use App\Http\Controllers\Api\Message\MessageController;
@@ -8,7 +9,6 @@ use App\Http\Controllers\Api\Post\PostController;
 use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Support\Facades\Route;
 
-//TODO: ubah beberapa endpoint dan juga beberapa nama file
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -36,7 +36,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
     Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
-    
+
+    Route::get('addresses/provinces', [AddressController::class, 'getProvinces']);
+    Route::get('addresses/provinces/{provinceId}/cities', [AddressController::class, 'getCitiesByProvince']);
+    Route::get('addresses/cities/{cityId}/districts', [AddressController::class, 'getDistrictsByCity']);
+    Route::get('addresses/districts/{districtId}/villages', [AddressController::class, 'getVillagesByDistrict']);
+
     Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
 

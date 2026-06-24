@@ -18,10 +18,10 @@ class RequestPostService
             'max_price' => $data['max_price'],
             'deadline' => $data['deadline'],
             'method_service' => $data['method_service'],
-            'province' => $data['province'],
-            'regency' => $data['regency'],
-            'district' => $data['district'],
-            'village' => $data['village'],
+            'province_id' => $data['province_id'],
+            'city_id' => $data['city_id'],
+            'district_id' => $data['district_id'],
+            'village_id' => $data['village_id'],
             'address_details' => $data['address_details'],
             'location' => DB::raw("ST_GeomFromText('POINT($longitude $latitude)', 4326)"),
             'published_until' => $data['published_until'],
@@ -30,8 +30,12 @@ class RequestPostService
 
         return $newPost->load([
             'requestDetail' => function ($query) {
-                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, province, regency, district, village, address_details, status, ST_X(location) as longitude, ST_Y(location) as latitude,published_until, created_at');
+                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, address_details, status, ST_X(location) as longitude, ST_Y(location) as latitude,published_until, created_at');
             },
+            'requestDetail.province',
+            'requestDetail.city',
+            'requestDetail.district',
+            'requestDetail.village',
             'images',
         ]);
     }
