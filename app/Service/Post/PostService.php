@@ -26,6 +26,7 @@ class PostService
     {   
         $posts = Post::with([
             'category',
+            'users',
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
@@ -51,6 +52,7 @@ class PostService
     {
         $posts = Post::with([
             'category',
+            'users',
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
@@ -65,6 +67,7 @@ class PostService
     {
         $posts = Post::with([
             'category',
+            'users',
             'offerDetail' => function ($query) {
                 $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
             },
