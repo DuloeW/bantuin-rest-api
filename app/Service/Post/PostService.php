@@ -5,6 +5,7 @@ use App\Enum\TypePostEnum;
 use App\Models\Post;
 use App\Models\User;
 use App\Traits\ServiceResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PostService
@@ -20,7 +21,7 @@ class PostService
         $this->offerPostService = $offerPostService;
     }
 
-
+// TODO menambahkan logic untuk filter by category name
     public function getAllPosts()
     {   
         $posts = Post::with([
@@ -45,6 +46,7 @@ class PostService
         return $this->successPayload(['count' => $postCount], 'total user posts retrieved successfully');
     }
 
+    // TODO menambahkan logic untuk filter by category name
     public function getAllPostsWithRequestDetails()
     {
         $posts = Post::with([
@@ -58,6 +60,7 @@ class PostService
         return $this->successPayload($posts, 'posts with request details retrieved successfully');
     }
 
+    // TODO menambahkan logic untuk filter by category name
     public function getAllWithOfferDetails()
     {
         $posts = Post::with([
