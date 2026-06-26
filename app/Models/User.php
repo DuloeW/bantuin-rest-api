@@ -65,7 +65,10 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Review::class, 'reviewed_id');
     }
 
-    
+    public function photoProfile()
+    {
+        return $this->morphOne(Image::class, 'imageable')->where('photo_profile');
+    }
 
     public function getFilamentName(): string
     {

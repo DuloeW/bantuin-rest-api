@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
+    Route::get('/users/posts/{id}', [UserController::class, 'getUsersPosts']);
 
     Route::get('/categories', [CategoryController::class, 'getAll']);
     Route::post('/categories', [CategoryController::class, 'create']);
