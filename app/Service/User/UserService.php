@@ -168,7 +168,6 @@ class UserService
         }
     }
 
-
     public function deleteUser(User $user)
     {
         $user->delete();
