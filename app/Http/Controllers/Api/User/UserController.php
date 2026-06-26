@@ -22,21 +22,21 @@ class UserController extends Controller
         return response()->json($result, $result['code']);
     }
 
-    public function getById($id)
+    public function getById(string $id)
     {
         $result = $this->userService->getUserById($id);
 
         return response()->json($result, $result['code']);
     }
 
-    public function getByFirstName($name)
+    public function getByFirstName(string $name)
     {
         $result = $this->userService->getUserByFirstName($name);
 
         return response()->json($result, $result['code']);
     }
 
-    public function getByLastName($name)
+    public function getByLastName(string $name)
     {
         $result = $this->userService->getUserByLastName($name);
 
@@ -64,15 +64,23 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($userId),
             ],
+            'photho_profile' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
             'phone' => 'sometimes|required|string|max:20',
-            'province' => 'sometimes|required|string|max:255',
-            'district' => 'sometimes|required|string|max:255',
-            'sub_district' => 'sometimes|required|string|max:255',
-            'village' => 'sometimes|required|string|max:255',
+            'province_id' => 'sometimes|required|numberic',
+            'district_id' => 'sometimes|required|numeric',
+            'city_id' => 'sometimes|required|numeric',
+            'village_id' => 'sometimes|required|numeric',   
             'neighborhood_unit' => 'sometimes|required|string|max:255',
         ]);
 
         $result = $this->userService->updateUser($userId, $data);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getUsersPosts(Request $request, string $id)
+    {
+        $result = $this->userService->getUsersPosts($request, $id);
 
         return response()->json($result, $result['code']);
     }
