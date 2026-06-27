@@ -59,13 +59,13 @@ class UserService
     public function getProfile(User $user)
     {
         $user->load([
-            // 'photoProfile',
-            // 'ktpPhoto',
+            'photoProfile',
+            'ktpPhoto',
             'province:id,name',
             'city:id,name',
             'district:id,name',
             'village:id,name',
-        ]);
+        ]); 
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
@@ -185,6 +185,7 @@ class UserService
 
             $user->photoProfile()->create([
                 'url' => $path,
+                'type' => 'profile',
                 'file_name' => $imageFile->getClientOriginalName(),
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
@@ -203,6 +204,7 @@ class UserService
 
             $user->ktpPhoto()->create([
                 'url' => $path,
+                'type' => 'ktp',
                 'file_name' => $imageFile->getClientOriginalName(),
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
