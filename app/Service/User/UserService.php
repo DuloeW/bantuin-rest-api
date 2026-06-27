@@ -58,6 +58,14 @@ class UserService
 
     public function getProfile(User $user)
     {
+        $user->load([
+            'photoProfile',
+            'ktpPhoto',
+            'province:id,name',
+            'city:id,name',
+            'district:id,name',
+            'village:id,name',
+        ]);
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
@@ -122,16 +130,41 @@ class UserService
     // TODO fitur untuk menampilkan history user
     public function getUsersHistory() {}
 
-    public function updateUser(string $id, array $data)
+    public function updateUser(string $id, array $data, array $profileImages, array $ktpImages)
     {
+        $uploadedPaths = [];
+
         try {
-            $user = User::findOrFail($id);
-            $user->update($data);
-            return $this->successPayload($user, 'user updated successfully');
+            return DB::transaction(function () use ($id, $data, $profileImages, $ktpImages, &$uploadedPaths) {
+                $user = User::findOrFail($id);
+
+                $currentProfileImage = $user->photoProfile;
+                $currentKtpImage = $user->ktpPhoto;
+
+                $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
+                $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
+
+                $user->update($data);
+
+                $this->deleteStoredImage($currentProfileImage);
+                $this->deleteStoredImage($currentKtpImage);
+
+                $user->load([
+                    'photoProfile',
+                    'ktpPhoto',
+                    'province:id,name',
+                    'city:id,name',
+                    'district:id,name',
+                    'village:id,name',
+                ]);
+                return $this->successPayload($user, 'user updated successfully');
+            });
         } catch (ModelNotFoundException $e) {
             return $this->errorPayload('user not found', [], 404);
         } catch (Exception $e) {
-            return $this->errorPayload('an error occurred while updating the user', [], 500);
+            $this->deleteStoredFiles($uploadedPaths);
+
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine() . ': ' . $e->getTraceAsString()], 500);
         }
     }
 
@@ -142,16 +175,63 @@ class UserService
         return $this->successPayload([], 'user deleted successfully');
     }
 
-    private function uploadImages(array $uploadedImages, User $user)
+    private function uploadProfileImage(array $uploadedImages, User $user)
     {
+        $storedPaths = [];
+
         foreach ($uploadedImages as $imageFile) {
-            $path = $imageFile->store('users', 'public');
+            $path = $imageFile->store('users-profile', 'public');
+            $storedPaths[] = $path;
 
             $user->photoProfile()->create([
                 'url' => $path,
                 'file_name' => $imageFile->getClientOriginalName(),
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
+        }
+
+        return $storedPaths;
+    }
+
+    private function uploadKtpImage(array $uploadedImages, User $user)
+    {
+        $storedPaths = [];
+
+        foreach ($uploadedImages as $imageFile) {
+            $path = $imageFile->store('users-ktp', 'public');
+            $storedPaths[] = $path;
+
+            $user->ktpPhoto()->create([
+                'url' => $path,
+                'file_name' => $imageFile->getClientOriginalName(),
+                'file_type' => $imageFile->getClientMimeType(),
+            ]);
+        }
+
+        return $storedPaths;
+    }
+
+    private function deleteStoredImage($image): void
+    {
+        if (!$image) {
+            return;
+        }
+
+        $image->delete();
+
+        if (!Storage::disk('public')->delete($image->url)) {
+            throw new Exception('failed to delete stored image');
+        }
+    }
+
+    private function deleteStoredFiles(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if ($path === null || $path === '') {
+                continue;
+            }
+
+            Storage::disk('public')->delete($path);
         }
     }
 }
