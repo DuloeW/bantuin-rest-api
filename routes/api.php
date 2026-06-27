@@ -19,10 +19,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::put('/users', [UserController::class, 'update']);
 
+   Route::middleware('auth:sanctum')->group(function () {
+    
     Route::post('/notifications/device-token', [DeviceTokenController::class, 'register']);
     Route::delete('/notifications/device-token', [DeviceTokenController::class, 'unregister']);
+
     Route::get('/notifications', [NotificationController::class, 'getPending']);
     Route::put('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    });
 });
 
     
