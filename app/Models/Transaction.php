@@ -13,8 +13,24 @@ class Transaction extends Model
 
     protected $guarded = []; // Agar semua field bisa diisi
 
-    public function offer() {
-        return $this->hasOne(Offer::class);
+    public function reportTransaction(): HasOne
+    {
+        return $this->hasOne(ReportTransaction::class, 'transaction_id');
+    }
+
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requester_id');
+    }
+
+    public function helper(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'helper_id');
+    }
+
+    public function offer(): BelongsTo
+    {
+        return $this->belongsTo(Offer::class, 'offer_id');
     }
     public function reportTransaction(): HasOne
     {
