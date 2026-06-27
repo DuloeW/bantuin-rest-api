@@ -32,5 +32,4 @@ class Transaction extends Model
     {
         return $this->belongsTo(Offer::class, 'offer_id');
     }
-  
 }
