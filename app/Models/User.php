@@ -15,9 +15,21 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Laravolt\Indonesia\Models\City;
+use Laravolt\Indonesia\Models\District;
+use Laravolt\Indonesia\Models\Province;
+use Laravolt\Indonesia\Models\Village;
 
 #[Guarded([])]
-#[Hidden(['password', 'remember_token', 'email_verified_at'])]
+#[Hidden([
+    'password',
+    'remember_token',
+    'email_verified_at',
+    'province_id',
+    'city_id',
+    'district_id',
+    'village_id',
+])]
 class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasFactory, Notifiable, HasApiTokens, HasUuids;
@@ -35,9 +47,9 @@ class User extends Authenticatable implements FilamentUser, HasName
         ];
     }
 
-    public function posts() 
+    public function posts()
     {
-        return $this->hasMany(Post ::class);
+        return $this->hasMany(Post::class);
     }
 
     public function skills()
@@ -50,7 +62,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Offer::class);
     }
 
-    public function transactionsAsRequester() 
+    public function transactionsAsRequester()
     {
         return $this->hasMany(Transaction::class, 'requester_id');
     }
@@ -65,9 +77,34 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Review::class, 'reviewed_id');
     }
 
-    public function deviceTokens()
+    public function photoProfile()
     {
-        return $this->hasMany(DeviceToken::class);
+        return $this->morphOne(Image::class, 'imageable');
+    }
+
+    public function ktpPhoto()
+    {
+        return $this->morphOne(Image::class, 'imageable');
+    }
+
+    public function province()
+    {
+        return $this->belongsTo(Province::class);
+    }
+
+    public function city()
+    {
+        return $this->belongsTo(City::class);
+    }
+
+    public function district()
+    {
+        return $this->belongsTo(District::class);
+    }
+
+    public function village()
+    {
+        return $this->belongsTo(Village::class);
     }
 
     public function getFilamentName(): string
