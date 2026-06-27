@@ -51,7 +51,7 @@ class UserController extends Controller
         return response()->json($user, $user['code']);
     }
 
-    public function update(Request $request)
+    public function update(Request $request, array $profileImages = [], array $ktpImages = [])
     {
         $userId = $request->user()->id;
         $data = $request->validate([
@@ -64,16 +64,25 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($userId),
             ],
-            'photho_profile' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'photo_profile' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'ktp_photo' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
             'phone' => 'sometimes|required|string|max:20',
-            'province_id' => 'sometimes|required|numberic',
+            'province_id' => 'sometimes|required|numeric',
             'district_id' => 'sometimes|required|numeric',
             'city_id' => 'sometimes|required|numeric',
             'village_id' => 'sometimes|required|numeric',   
             'neighborhood_unit' => 'sometimes|required|string|max:255',
         ]);
 
-        $result = $this->userService->updateUser($userId, $data);
+        if ($request->hasFile('photo_profile')) {
+            $profileImages[] = $request->file('photo_profile');
+        }
+
+        if ($request->hasFile('ktp_photo')) {
+            $ktpImages[] = $request->file('ktp_photo');
+        }
+
+        $result = $this->userService->updateUser($userId, $data, $profileImages, $ktpImages);
 
         return response()->json($result, $result['code']);
     }
