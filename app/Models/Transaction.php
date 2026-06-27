@@ -30,10 +30,4 @@ class Transaction extends Model
     {
         return $this->belongsTo(User::class, 'helper_id');
     }
-
-    public function offer(): BelongsTo
-    {
-        return $this->belongsTo(Offer::class, 'offer_id');
-    }
-
 }
