@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\Category\CategoryController;
 use App\Http\Controllers\Api\Message\MessageController;
 use App\Http\Controllers\Api\Offer\OfferController;
 use App\Http\Controllers\Api\Post\PostController;
+use App\Http\Controllers\Api\Skill\SkillController;
 use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -49,5 +50,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
 
     Route::post('/offers/{offerId}/messages', [MessageController::class, 'sendMessage']);
+
+    Route::get('/skills', [SkillController::class, 'getAllSkills']);
+    Route::get('/skills/{id}', [SkillController::class, 'getSkillById']);
+    Route::get('/skills/name/{name}', [SkillController::class, 'getSkillByName']);
+    Route::get('/skills/search/{name}', [SkillController::class, 'searchSkillsByName']);
 });
     
