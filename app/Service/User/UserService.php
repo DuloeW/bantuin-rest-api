@@ -60,7 +60,7 @@ class UserService
     {
         $user->load([
             'photoProfile',
-            'ktpPhoto',
+            // 'ktpPhoto',
             'province:id,name',
             'city:id,name',
             'district:id,name',
