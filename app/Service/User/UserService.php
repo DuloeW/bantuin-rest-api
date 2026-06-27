@@ -59,8 +59,8 @@ class UserService
     public function getProfile(User $user)
     {
         $user->load([
-            'photoProfile',
-            'ktpPhoto',
+            // 'photoProfile',
+            // 'ktpPhoto',
             'province:id,name',
             'city:id,name',
             'district:id,name',
