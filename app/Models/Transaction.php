@@ -32,4 +32,18 @@ class Transaction extends Model
     {
         return $this->belongsTo(Offer::class, 'offer_id');
     }
+    public function reportTransaction(): HasOne
+    {
+        return $this->hasOne(ReportTransaction::class, 'transaction_id');
+    }
+
+    public function requester(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'requester_id');
+    }
+
+    public function helper(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'helper_id');
+    }
 }
