@@ -54,7 +54,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function skills()
     {
-        return $this->belongsToMany(Skill::class);
+        return $this->belongsToMany(Skill::class, 'skill_users', 'user_id', 'skill_id');
     }
 
     public function offers()

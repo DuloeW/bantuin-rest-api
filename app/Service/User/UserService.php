@@ -130,6 +130,7 @@ class UserService
     // TODO fitur untuk menampilkan history user
     public function getUsersHistory() {}
 
+    // TODO update skill belum
     public function updateUser(string $id, array $data, array $profileImages, array $ktpImages)
     {
         $uploadedPaths = [];
@@ -144,6 +145,10 @@ class UserService
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
 
+                $user->skills()->sync($data['skills'] ?? []);
+
+                unset($data['skills']);
+
                 $user->update($data);
 
                 $this->deleteStoredImage($currentProfileImage);
@@ -156,6 +161,7 @@ class UserService
                     'city:id,name',
                     'district:id,name',
                     'village:id,name',
+                    'skills:id,title',
                 ]);
                 return $this->successPayload($user, 'user updated successfully');
             });
