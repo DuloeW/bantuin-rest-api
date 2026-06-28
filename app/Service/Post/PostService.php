@@ -100,6 +100,7 @@ class PostService
     }
 
 
+    // TODO isikan validasi user sudah verified atau belum, jika belum maka tidak bisa membuat post
     public function createRequestPost(array $data, array $uploadedImages)
     {
         return DB::transaction(function () use ($data, $uploadedImages) {
@@ -108,6 +109,10 @@ class PostService
             $userId = auth('sanctum')->id();
 
             $user = User::where('id', $userId)->first();
+
+            // if (!$user->email_verified_at) {
+            //     return $this->errorPayload('user email is not verified', null, 403);
+            // }
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::REQUEST->value)
                 ->whereHas('requestDetail', function ($query) {
@@ -136,6 +141,7 @@ class PostService
         });
     }
 
+    // TODO isikan validasi user sudah verified atau belum, jika belum maka tidak bisa membuat post
     public function createOfferPost(array $data, array $uploadedImages)
     {
         return DB::transaction(function () use ($data, $uploadedImages) {
@@ -144,6 +150,10 @@ class PostService
             $userId = auth('sanctum')->id();
 
             $user = User::where('id', $userId)->first();
+
+            // if (!$user->email_verified_at) {
+            //     return $this->errorPayload('user email is not verified', null, 403);
+            // }
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::OFFER->value)
                 ->whereHas('offerDetail', function ($query) {
