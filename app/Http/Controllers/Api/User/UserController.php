@@ -72,6 +72,8 @@ class UserController extends Controller
             'city_id' => 'sometimes|required|numeric',
             'village_id' => 'sometimes|required|numeric',   
             'neighborhood_unit' => 'sometimes|required|string|max:255',
+            'skills' => 'sometimes|required|array',
+            'skills.*' => 'sometimes|required|string|exists:skills,id',
         ]);
 
         if ($request->hasFile('photo_profile')) {
