@@ -31,6 +31,16 @@ class UserService
             return $this->errorPayload('user not found', [], 404);
         }
 
+        $user->load([
+            'photoProfile',
+            // 'ktpPhoto',
+            'province:id,name',
+            'city:id,name',
+            'district:id,name',
+            'village:id,name',
+            'skills:id,title',
+        ]);
+
         return $this->successPayload($user, 'user retrieved successfully');
     }
 
@@ -65,7 +75,8 @@ class UserService
             'city:id,name',
             'district:id,name',
             'village:id,name',
-        ]); 
+            'skills:id,title',
+        ]);
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
