@@ -7,10 +7,8 @@ use App\Traits\ServiceResponse;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\PersonalAccessToken;
 
 class UserService
 {
@@ -27,7 +25,7 @@ class UserService
     {
         $user = User::find($id);
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
 
@@ -48,7 +46,7 @@ class UserService
     {
         $user = User::where('first_name', $name)->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
 
@@ -59,7 +57,7 @@ class UserService
     {
         $user = User::where('last_name', $name)->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
 
@@ -77,6 +75,7 @@ class UserService
             'village:id,name',
             'skills:id,title',
         ]);
+
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
@@ -174,6 +173,7 @@ class UserService
                     'village:id,name',
                     'skills:id,title',
                 ]);
+
                 return $this->successPayload($user, 'user updated successfully');
             });
         } catch (ModelNotFoundException $e) {
@@ -181,7 +181,7 @@ class UserService
         } catch (Exception $e) {
             $this->deleteStoredFiles($uploadedPaths);
 
-            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine() . ': ' . $e->getTraceAsString()], 500);
+            return $this->errorPayload($e->getMessage(), [$e->getFile().':'.$e->getLine().': '.$e->getTraceAsString()], 500);
         }
     }
 
@@ -196,8 +196,15 @@ class UserService
     {
         $storedPaths = [];
 
+        // Delete old profile image first
+        if ($user->photoProfile) {
+            Storage::disk('public')->delete($user->photoProfile->url);
+            $user->photoProfile()->delete();
+        }
+
         foreach ($uploadedImages as $imageFile) {
             $path = $imageFile->store('users-profile', 'public');
+
             $storedPaths[] = $path;
 
             $user->photoProfile()->create([
@@ -208,6 +215,10 @@ class UserService
             ]);
         }
 
+        // VERY IMPORTANT
+        $user->unsetRelation('photoProfile');
+        $user->load('photoProfile');
+
         return $storedPaths;
     }
 
@@ -215,8 +226,15 @@ class UserService
     {
         $storedPaths = [];
 
+        // Delete old profile image first
+        if ($user->ktpPhoto) {
+            Storage::disk('public')->delete($user->ktpPhoto->url);
+            $user->ktpPhoto()->delete();
+        }
+
         foreach ($uploadedImages as $imageFile) {
             $path = $imageFile->store('users-ktp', 'public');
+
             $storedPaths[] = $path;
 
             $user->ktpPhoto()->create([
@@ -226,19 +244,21 @@ class UserService
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
         }
+        $user->unsetRelation('ktpPhoto');
+        $user->load('ktpPhoto');
 
         return $storedPaths;
     }
 
     private function deleteStoredImage($image): void
     {
-        if (!$image) {
+        if (! $image) {
             return;
         }
 
         $image->delete();
 
-        if (!Storage::disk('public')->delete($image->url)) {
+        if (! Storage::disk('public')->delete($image->url)) {
             throw new Exception('failed to delete stored image');
         }
     }
