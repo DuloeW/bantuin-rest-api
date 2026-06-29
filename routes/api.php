@@ -54,6 +54,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
 
     Route::post('/offers/{offerId}/messages', [MessageController::class, 'sendMessage']);
+    Route::get('/offers/{offerId}/messages', [MessageController::class, 'getMessages']);
 
     Route::get('/skills', [SkillController::class, 'getAllSkills']);
     Route::get('/skills/{id}', [SkillController::class, 'getSkillById']);

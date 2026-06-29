@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api\Message;
 
 use App\Http\Controllers\Controller;
-use App\Models\Offer;
 use App\Service\Message\MessageService;
 use Illuminate\Http\Request;
 
@@ -15,10 +14,11 @@ class MessageController extends Controller
     {
         $this->messageService = $messageService;
     }
+
     public function sendMessage(Request $request, string $offerId)
     {
         $user = auth('sanctum')->user();
-        
+
         $offer = $this->messageService->fetchOffer($offerId);
 
         if (
@@ -30,11 +30,20 @@ class MessageController extends Controller
 
         $request->validate([
             'content' => 'required|string',
-            'type'=> 'nullable|string|in:text',
+            'type'    => 'nullable|string|in:text',
         ]);
 
-        $message = $this->messageService->sendMessage($request, $offer, $user);
+        $result = $this->messageService->sendMessage($request, $offer, $user);
 
-        return response()->json($message);
+        return response()->json($result, $result['code']);
+    }
+
+    public function getMessages(string $offerId)
+    {
+        $user = auth('sanctum')->user();
+
+        $result = $this->messageService->getMessages($offerId, $user);
+
+        return response()->json($result, $result['code']);
     }
 }
