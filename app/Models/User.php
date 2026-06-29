@@ -62,6 +62,16 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Offer::class);
     }
 
+    public function bankAccounts()
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    public function primaryBankAccount()
+    {
+        return $this->hasOne(BankAccount::class)->where('is_primary', true);
+    }
+
     public function transactionsAsRequester()
     {
         return $this->hasMany(Transaction::class, 'requester_id');

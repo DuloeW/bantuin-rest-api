@@ -4,6 +4,7 @@ namespace App\Service\Offer;
 
 use App\Enum\OfferingStatusEnum;
 use App\Enum\OpenCloseEnum;
+use App\Models\BankAccount;
 use App\Models\Offer;
 use App\Models\Post;
 use App\Traits\ServiceResponse;
@@ -25,6 +26,14 @@ class OfferHelpService
         if($post->user_id === $helperId) {
             throw ValidationException::withMessages([
                 'post_id' => ['You cannot apply for a job on your own post.']
+            ]);
+        }
+
+        // Wajib punya rekening bank untuk menerima pembayaran escrow
+        $hasBankAccount = BankAccount::where('user_id', $helperId)->exists();
+        if (!$hasBankAccount) {
+            throw ValidationException::withMessages([
+                'bank_account' => ['Kamu harus mendaftarkan rekening bank terlebih dahulu sebelum melamar pekerjaan.']
             ]);
         }
 
