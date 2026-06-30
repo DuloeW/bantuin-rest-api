@@ -85,8 +85,8 @@ class PostController extends Controller
             'category_id' => 'required|exists:categories,id',
             'base_price' => 'required_if:type,offer|numeric',
             'time_start' => 'required_if:type,offer|date_format:H:i',
-            'time_end' => 'required_if:type,offer|date_format:H:i',
-            'portfolio_url' => 'sometimes|nullable|string|max:500',
+            'time_end' => 'required_if:type,offer|date_format:H:i|after:time_start',
+            'portfolio_url' => 'sometimes|nullable|url',
             'experience_years' => 'required_if:type,offer|integer|min:0',
             'province_id' => 'required_if:type,offer|integer|exists:indonesia_provinces,id',
             'city_id' => 'required_if:type,offer|integer|exists:indonesia_cities,id',
@@ -109,7 +109,6 @@ class PostController extends Controller
 
         return response()->json($result, $result['code']);
     }
-
 
     public function delete(string $id)
     {   

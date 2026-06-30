@@ -3,11 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -32,7 +30,7 @@ use Laravolt\Indonesia\Models\Village;
 ])]
 class User extends Authenticatable implements FilamentUser, HasName
 {
-    use HasFactory, Notifiable, HasApiTokens, HasUuids;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -89,12 +87,16 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function photoProfile()
     {
-        return $this->morphOne(Image::class, 'imageable');
+        return $this->morphOne(Image::class, 'imageable')
+            ->where('type', 'profile')
+            ->latestOfMany();
     }
 
     public function ktpPhoto()
     {
-        return $this->morphOne(Image::class, 'imageable');
+        return $this->morphOne(Image::class, 'imageable')
+            ->where('type', 'ktp')
+            ->latestOfMany();
     }
 
     public function province()

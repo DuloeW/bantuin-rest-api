@@ -149,8 +149,8 @@ class UserService
             return DB::transaction(function () use ($id, $data, $profileImages, $ktpImages, &$uploadedPaths) {
                 $user = User::findOrFail($id);
 
-                $currentProfileImage = $user->photoProfile;
-                $currentKtpImage = $user->ktpPhoto;
+                // $currentProfileImage = $user->photoProfile;
+                // $currentKtpImage = $user->ktpPhoto;
 
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
@@ -161,9 +161,10 @@ class UserService
 
                 $user->update($data);
 
-                $this->deleteStoredImage($currentProfileImage);
-                $this->deleteStoredImage($currentKtpImage);
+                // $this->deleteStoredImage($currentProfileImage);
+                // $this->deleteStoredImage($currentKtpImage);
 
+                $user->refresh();
                 $user->load([
                     'photoProfile',
                     'ktpPhoto',
@@ -216,8 +217,8 @@ class UserService
         }
 
         // VERY IMPORTANT
-        $user->unsetRelation('photoProfile');
-        $user->load('photoProfile');
+        // $user->unsetRelation('photoProfile');
+        // $user->load('photoProfile');
 
         return $storedPaths;
     }

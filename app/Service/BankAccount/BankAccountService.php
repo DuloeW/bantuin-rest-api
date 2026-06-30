@@ -20,7 +20,7 @@ class BankAccountService
     {
         // Validasi bank_code termasuk yang didukung
         $validCodes = array_column(BankCodeEnum::cases(), 'value');
-        if (!in_array($data['bank_code'], $validCodes)) {
+        if (! in_array($data['bank_code'], $validCodes)) {
             throw ValidationException::withMessages([
                 'bank_code' => ['Bank yang dipilih tidak didukung.'],
             ]);
@@ -41,7 +41,7 @@ class BankAccountService
         }
 
         // Hitung apakah ini rekening pertama user — jika ya, jadikan primary otomatis
-        $isFirst = !BankAccount::where('user_id', $userId)->exists();
+        $isFirst = ! BankAccount::where('user_id', $userId)->exists();
         $isPrimary = $isFirst || ($data['is_primary'] ?? false);
 
         $bankAccount = DB::transaction(function () use ($data, $userId, $bankEnum, $isPrimary) {
@@ -53,13 +53,13 @@ class BankAccountService
             }
 
             return BankAccount::create([
-                'user_id'        => $userId,
-                'bank_code'      => $bankEnum->value,
-                'bank_name'      => $bankEnum->label(),
+                'user_id' => $userId,
+                'bank_code' => $bankEnum->value,
+                'bank_name' => $bankEnum->label(),
                 'account_number' => $data['account_number'],
-                'account_name'   => $data['account_name'],
-                'is_primary'     => $isPrimary,
-                'is_verified'    => false, // belum diverifikasi
+                'account_name' => $data['account_name'],
+                'is_primary' => $isPrimary,
+                'is_verified' => false, // belum diverifikasi
             ]);
         });
 
@@ -88,7 +88,7 @@ class BankAccountService
             ->where('user_id', $userId)
             ->first();
 
-        if (!$bankAccount) {
+        if (! $bankAccount) {
             throw ValidationException::withMessages([
                 'bank_account_id' => ['Rekening tidak ditemukan.'],
             ]);
@@ -116,7 +116,7 @@ class BankAccountService
             ->where('user_id', $userId)
             ->first();
 
-        if (!$bankAccount) {
+        if (! $bankAccount) {
             throw ValidationException::withMessages([
                 'bank_account_id' => ['Rekening tidak ditemukan.'],
             ]);
