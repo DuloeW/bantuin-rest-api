@@ -24,7 +24,7 @@ class OfferPostService
         $posts = Post::with([
             'category',
             'offerDetail' => function ($query) {
-                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province, regency, district, village, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province, regency, district, village, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
             },
             'images',
         ])->get();
@@ -52,13 +52,13 @@ class OfferPostService
             'district_id' => $data['district_id'],
             'village_id' => $data['village_id'],
             'address_details' => $data['address_details'],
-            'location' => DB::raw("ST_GeomFromText('POINT($longitude $latitude)', 4326)"),
+            'location' => DB::raw("ST_GeomFromText('POINT($latitude $longitude)', 4326)"),
             'status' => ActiveOffEnum::formatToEnum($data['status'])->value,
         ]);
 
         return $newPost->load([
             'offerDetail' => function ($query) {
-                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
             },
             'offerDetail.province',
             'offerDetail.city',

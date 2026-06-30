@@ -32,10 +32,6 @@ class UserFactory extends Factory
         'phone' => fake()->numerify('08##########'), // Bikin nomor HP random
         'password' => bcrypt('password'), // Biar gampang tes login, passwordnya 'password' semua
         'role' => 'user', // Set otomatis sebagai user biasa
-        'province' => 'bali',
-        'district' => 'badung',
-        'sub_district' => 'kuta selatan',
-        'village' => 'jimbaran',
         'neighborhood_unit' => '0',
         'wallet_balance' => 0,
         'is_verified' => 1,

@@ -49,8 +49,8 @@ class OfferPost extends Model
         if (($lat === null || $lon === null) && isset($this->attributes['location'])) {
             $loc = $this->attributes['location'];
             if (preg_match('/POINT\(([-0-9.]+) ([-0-9.]+)\)/', $loc, $m)) {
-                $lon = $m[1];
-                $lat = $m[2];
+                $lat = $m[1];
+                $lon = $m[2];
             }
         }
 

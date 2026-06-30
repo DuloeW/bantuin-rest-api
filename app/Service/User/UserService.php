@@ -92,14 +92,14 @@ class UserService
         if ($type === null) {
             $query->with([
                 'requestDetail' => function ($q) {
-                    $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                    $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
                 },
                 'requestDetail.province:id,name',
                 'requestDetail.city:id,name',
                 'requestDetail.district:id,name',
                 'requestDetail.village:id,name',
                 'offerDetail' => function ($q) {
-                    $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                    $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
                 },
                 'offerDetail.province:id,name',
                 'offerDetail.city:id,name',
@@ -112,7 +112,7 @@ class UserService
             $query->where('type', 'request')
                 ->with([
                     'requestDetail' => function ($q) {
-                        $q->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                        $q->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
                     },
                     'requestDetail.province:id,name',
                     'requestDetail.city:id,name',
@@ -123,7 +123,7 @@ class UserService
             $query->where('type', 'offer')
                 ->with([
                     'offerDetail' => function ($q) {
-                        $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as longitude, ST_Y(location) as latitude, created_at, updated_at');
+                        $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
                     },
                     'offerDetail.province:id,name',
                     'offerDetail.city:id,name',

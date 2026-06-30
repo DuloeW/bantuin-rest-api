@@ -2,6 +2,7 @@
 
 namespace App\Service\Offer;
 
+use App\Models\BankAccount;
 use App\Models\Post;
 use App\Traits\ServiceResponse;
 use Illuminate\Validation\ValidationException;
@@ -14,13 +15,20 @@ class HireHelperService
     {
         if ($post->type !== 'offer') {
             throw ValidationException::withMessages([
-                'post_id' => ['You can only book a helper service on an offer post.']
+                'post_id' => ['You can only book a helper service on an offer post.'],
             ]);
         }
 
         if ($post->user_id === $requesterId) {
             throw ValidationException::withMessages([
-                'post_id' => ['You cannot book your own service.']
+                'post_id' => ['You cannot book your own service.'],
+            ]);
+        }
+
+        $helperHasBank = BankAccount::where('user_id', $post->user_id)->exists();
+        if (! $helperHasBank) {
+            throw ValidationException::withMessages([
+                'post_id' => ['The helper must register a bank account before their service can be booked.'],
             ]);
         }
 
@@ -30,7 +38,7 @@ class HireHelperService
 
         if ($hasBooked) {
             throw ValidationException::withMessages([
-                'post_id' => ['You have already booked this helper service.']
+                'post_id' => ['You have already booked this helper service.'],
             ]);
         }
 
@@ -38,7 +46,7 @@ class HireHelperService
 
         if ($data['offered_price'] < $basePrice) {
             throw ValidationException::withMessages([
-                'offered_price' => ['The offered price must be at least ' . $basePrice . '.']
+                'offered_price' => ['The offered price must be at least '.$basePrice.'.'],
             ]);
         }
 
@@ -54,6 +62,6 @@ class HireHelperService
 
     public function getOffersForPost(Post $post)
     {
-        return $post->offers()->with('requester')->get();
+        return $post->offers()->with(['helper', 'requester'])->get();
     }
 }

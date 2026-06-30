@@ -30,7 +30,7 @@ class MessageController extends Controller
 
         $request->validate([
             'content' => 'required|string',
-            'type'    => 'nullable|string|in:text',
+            'type'    => 'nullable|string|in:text,agreement',
         ]);
 
         $result = $this->messageService->sendMessage($request, $offer, $user);

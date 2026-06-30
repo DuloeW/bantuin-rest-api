@@ -67,7 +67,7 @@ class OfferHelpService
 
     public function getOffersForPost(Post $post)
     {
-        return $post->offers()->with('helper')->get();
+        return $post->offers()->with(['helper', 'requester'])->get();
     }
 
     public function acceptHelper(Offer $offer, string $helperId)

@@ -52,6 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
 
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
+    Route::post('/offers/{offerId}/finalize', [OfferController::class, 'finalizeOffer']);
 
     Route::post('/offers/{offerId}/messages', [MessageController::class, 'sendMessage']);
     Route::get('/offers/{offerId}/messages', [MessageController::class, 'getMessages']);
