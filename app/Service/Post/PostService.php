@@ -6,6 +6,7 @@ use App\Enum\TypePostEnum;
 use App\Models\Post;
 use App\Models\User;
 use App\Traits\ServiceResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PostService
@@ -99,6 +100,7 @@ class PostService
 
         return $this->successPayload($posts, 'posts with offer details retrieved successfully');
     }
+
 
     // TODO isikan validasi user sudah verified atau belum, jika belum maka tidak bisa membuat post
     public function createRequestPost(array $data, array $uploadedImages)

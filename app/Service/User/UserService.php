@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Service\User;
 
 use App\Models\User;
@@ -6,8 +7,8 @@ use App\Traits\ServiceResponse;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Laravel\Sanctum\PersonalAccessToken;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class UserService
 {
@@ -24,9 +25,19 @@ class UserService
     {
         $user = User::find($id);
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
+
+        $user->load([
+            'photoProfile',
+            // 'ktpPhoto',
+            'province:id,name',
+            'city:id,name',
+            'district:id,name',
+            'village:id,name',
+            'skills:id,title',
+        ]);
 
         return $this->successPayload($user, 'user retrieved successfully');
     }
@@ -35,7 +46,7 @@ class UserService
     {
         $user = User::where('first_name', $name)->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
 
@@ -46,27 +57,132 @@ class UserService
     {
         $user = User::where('last_name', $name)->first();
 
-        if (!$user) {
+        if (! $user) {
             return $this->errorPayload('user not found', [], 404);
         }
 
         return $this->successPayload($user, 'user retrieved successfully');
     }
 
-    public function getProfile(User $user) {
+    public function getProfile(User $user)
+    {
+        $user->load([
+            'photoProfile',
+            // 'ktpPhoto',
+            'province:id,name',
+            'city:id,name',
+            'district:id,name',
+            'village:id,name',
+            'skills:id,title',
+        ]);
+
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
-    public function updateUser(string $id, array $data)
+    public function getUsersPosts(Request $request, string $id)
     {
+        $user = User::findOrFail($id);
+        $type = $request->query('type');
+
+        $query = $user->posts()->with([
+            'category',
+            'images',
+        ]);
+
+        if ($type === null) {
+            $query->with([
+                'requestDetail' => function ($q) {
+                    $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                },
+                'requestDetail.province:id,name',
+                'requestDetail.city:id,name',
+                'requestDetail.district:id,name',
+                'requestDetail.village:id,name',
+                'offerDetail' => function ($q) {
+                    $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                },
+                'offerDetail.province:id,name',
+                'offerDetail.city:id,name',
+                'offerDetail.district:id,name',
+                'offerDetail.village:id,name',
+            ]);
+        }
+
+        if ($type === 'request') {
+            $query->where('type', 'request')
+                ->with([
+                    'requestDetail' => function ($q) {
+                        $q->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                    },
+                    'requestDetail.province:id,name',
+                    'requestDetail.city:id,name',
+                    'requestDetail.district:id,name',
+                    'requestDetail.village:id,name',
+                ]);
+        } elseif ($type === 'offer') {
+            $query->where('type', 'offer')
+                ->with([
+                    'offerDetail' => function ($q) {
+                        $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, province_id, city_id, district_id, village_id, status, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                    },
+                    'offerDetail.province:id,name',
+                    'offerDetail.city:id,name',
+                    'offerDetail.district:id,name',
+                    'offerDetail.village:id,name',
+                ]);
+        }
+
+        $posts = $query->get();
+
+        return $this->successPayload($posts, 'user posts retrieved successfully');
+    }
+
+    // TODO fitur untuk menampilkan history user
+    public function getUsersHistory() {}
+
+    // TODO update skill belum
+    public function updateUser(string $id, array $data, array $profileImages, array $ktpImages)
+    {
+        $uploadedPaths = [];
+
         try {
-            $user = User::findOrFail($id);
-            $user->update($data);
-            return $this->successPayload($user, 'user updated successfully');
+            return DB::transaction(function () use ($id, $data, $profileImages, $ktpImages, &$uploadedPaths) {
+                $user = User::findOrFail($id);
+
+                // $currentProfileImage = $user->photoProfile;
+                // $currentKtpImage = $user->ktpPhoto;
+
+                $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
+                $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
+
+                $user->skills()->sync($data['skills'] ?? []);
+
+                unset($data['skills']);
+
+                $user->update($data);
+
+                // $this->deleteStoredImage($currentProfileImage);
+                // $this->deleteStoredImage($currentKtpImage);
+
+                $user->refresh();
+                $user->load([
+                    'photoProfile',
+                    'ktpPhoto',
+                    'province:id,name',
+                    'city:id,name',
+                    'district:id,name',
+                    'village:id,name',
+                    'skills:id,title',
+                ]);
+
+                return $this->successPayload($user, 'user updated successfully');
+            });
         } catch (ModelNotFoundException $e) {
             return $this->errorPayload('user not found', [], 404);
         } catch (Exception $e) {
-            return $this->errorPayload('an error occurred while updating the user', [], 500);
+            $this->deleteStoredFiles($uploadedPaths);
+
+            return $this->errorPayload($e->getMessage(), [$e->getFile().':'.$e->getLine().': '.$e->getTraceAsString()], 500);
         }
     }
 
@@ -75,5 +191,87 @@ class UserService
         $user->delete();
 
         return $this->successPayload([], 'user deleted successfully');
+    }
+
+    private function uploadProfileImage(array $uploadedImages, User $user)
+    {
+        $storedPaths = [];
+
+        // Delete old profile image first
+        if ($user->photoProfile) {
+            Storage::disk('public')->delete($user->photoProfile->url);
+            $user->photoProfile()->delete();
+        }
+
+        foreach ($uploadedImages as $imageFile) {
+            $path = $imageFile->store('users-profile', 'public');
+
+            $storedPaths[] = $path;
+
+            $user->photoProfile()->create([
+                'url' => $path,
+                'type' => 'profile',
+                'file_name' => $imageFile->getClientOriginalName(),
+                'file_type' => $imageFile->getClientMimeType(),
+            ]);
+        }
+
+        // VERY IMPORTANT
+        // $user->unsetRelation('photoProfile');
+        // $user->load('photoProfile');
+
+        return $storedPaths;
+    }
+
+    private function uploadKtpImage(array $uploadedImages, User $user)
+    {
+        $storedPaths = [];
+
+        // Delete old profile image first
+        if ($user->ktpPhoto) {
+            Storage::disk('public')->delete($user->ktpPhoto->url);
+            $user->ktpPhoto()->delete();
+        }
+
+        foreach ($uploadedImages as $imageFile) {
+            $path = $imageFile->store('users-ktp', 'public');
+
+            $storedPaths[] = $path;
+
+            $user->ktpPhoto()->create([
+                'url' => $path,
+                'type' => 'ktp',
+                'file_name' => $imageFile->getClientOriginalName(),
+                'file_type' => $imageFile->getClientMimeType(),
+            ]);
+        }
+        $user->unsetRelation('ktpPhoto');
+        $user->load('ktpPhoto');
+
+        return $storedPaths;
+    }
+
+    private function deleteStoredImage($image): void
+    {
+        if (! $image) {
+            return;
+        }
+
+        $image->delete();
+
+        if (! Storage::disk('public')->delete($image->url)) {
+            throw new Exception('failed to delete stored image');
+        }
+    }
+
+    private function deleteStoredFiles(array $paths): void
+    {
+        foreach ($paths as $path) {
+            if ($path === null || $path === '') {
+                continue;
+            }
+
+            Storage::disk('public')->delete($path);
+        }
     }
 }

@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 //TODO menentukan flow template response
 class UserController extends Controller
 {
-    protected $userService;
+    protected  UserService $userService;
 
     public function __construct(UserService $userService)
     {
@@ -22,21 +22,21 @@ class UserController extends Controller
         return response()->json($result, $result['code']);
     }
 
-    public function getById($id)
+    public function getById(string $id)
     {
         $result = $this->userService->getUserById($id);
 
         return response()->json($result, $result['code']);
     }
 
-    public function getByFirstName($name)
+    public function getByFirstName(string $name)
     {
         $result = $this->userService->getUserByFirstName($name);
 
         return response()->json($result, $result['code']);
     }
 
-    public function getByLastName($name)
+    public function getByLastName(string $name)
     {
         $result = $this->userService->getUserByLastName($name);
 
@@ -51,7 +51,7 @@ class UserController extends Controller
         return response()->json($user, $user['code']);
     }
 
-    public function update(Request $request)
+    public function update(Request $request, array $profileImages = [], array $ktpImages = [])
     {
         $userId = $request->user()->id;
         $data = $request->validate([
@@ -64,15 +64,34 @@ class UserController extends Controller
                 'max:255',
                 Rule::unique('users')->ignore($userId),
             ],
+            'photo_profile' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'ktp_photo' => 'sometimes|nullable|image|mimes:jpeg,png,jpg|max:2048',
             'phone' => 'sometimes|required|string|max:20',
-            'province' => 'sometimes|required|string|max:255',
-            'district' => 'sometimes|required|string|max:255',
-            'sub_district' => 'sometimes|required|string|max:255',
-            'village' => 'sometimes|required|string|max:255',
+            'province_id' => 'sometimes|required|numeric',
+            'district_id' => 'sometimes|required|numeric',
+            'city_id' => 'sometimes|required|numeric',
+            'village_id' => 'sometimes|required|numeric',   
             'neighborhood_unit' => 'sometimes|required|string|max:255',
+            'skills' => 'sometimes|required|array',
+            'skills.*' => 'sometimes|required|string|exists:skills,id',
         ]);
 
-        $result = $this->userService->updateUser($userId, $data);
+        if ($request->hasFile('photo_profile')) {
+            $profileImages[] = $request->file('photo_profile');
+        }
+
+        if ($request->hasFile('ktp_photo')) {
+            $ktpImages[] = $request->file('ktp_photo');
+        }
+
+        $result = $this->userService->updateUser($userId, $data, $profileImages, $ktpImages);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getUsersPosts(Request $request, string $id)
+    {
+        $result = $this->userService->getUsersPosts($request, $id);
 
         return response()->json($result, $result['code']);
     }
