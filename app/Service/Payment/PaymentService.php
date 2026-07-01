@@ -62,26 +62,34 @@ class PaymentService
                     'offer_id' => ['Transaksi untuk offer ini sudah ada.'],
                 ]);
             }
+
+            // Gunakan harga dari transaksi yang sudah disepakati di final agreement
+            $finalPrice = $existingTransaction->final_price;
+            $adminFee   = $existingTransaction->admin_fee;
+            $totalPrice = $existingTransaction->total_price;
+        } else {
+            // Hitung harga default jika transaksi belum terbuat (fallback)
+            $finalPrice  = $offer->offered_price;
+            $feePercent  = config('midtrans.platform_fee_percent', 0.05);
+            $adminFee    = round($finalPrice * $feePercent);
+            $totalPrice  = $finalPrice + $adminFee;
         }
 
-        // Hitung harga
-        $finalPrice  = $offer->offered_price;
-        $feePercent  = config('midtrans.platform_fee_percent', 0.05);
-        $adminFee    = round($finalPrice * $feePercent);
-        $totalPrice  = $finalPrice + $adminFee;
-
-        return DB::transaction(function () use ($offer, $bank, $finalPrice, $adminFee, $totalPrice) {
-            // Buat atau ambil Transaction
-            $transaction = Transaction::create([
-                'offer_id'     => $offer->id,
-                'requester_id' => $offer->requester_id,
-                'helper_id'    => $offer->helper_id,
-                'final_price'  => $finalPrice,
-                'admin_fee'    => $adminFee,
-                'total_price'  => $totalPrice,
-                'deadline'     => $offer->post?->requestDetail?->deadline ?? now()->addDays(7),
-                'status'       => 'pending',
-            ]);
+        return DB::transaction(function () use ($offer, $bank, $finalPrice, $adminFee, $totalPrice, $existingTransaction) {
+            // Gunakan transaksi yang sudah ada atau buat baru jika tidak ada
+            $transaction = $existingTransaction;
+            if (!$transaction) {
+                $transaction = Transaction::create([
+                    'offer_id'     => $offer->id,
+                    'requester_id' => $offer->requester_id,
+                    'helper_id'    => $offer->helper_id,
+                    'final_price'  => $finalPrice,
+                    'admin_fee'    => $adminFee,
+                    'total_price'  => $totalPrice,
+                    'deadline'     => $offer->post?->requestDetail?->deadline ?? now()->addDays(7),
+                    'status'       => 'pending',
+                ]);
+            }
 
             // Buat Payment record
             $midtransOrderId = 'BANTUIN-' . strtoupper(substr($transaction->id, 0, 8)) . '-' . time();
@@ -128,13 +136,26 @@ class PaymentService
     {
         $this->configureMidtrans();
 
-        $notification = new Notification();
+        $rawBody = request()->getContent();
+        Log::info('RAW WEBHOOK BODY:', ['body' => $rawBody]);
 
-        $orderId           = $notification->order_id;
-        $transactionStatus = $notification->transaction_status;
-        $fraudStatus       = $notification->fraud_status;
-        $paymentType       = $notification->payment_type;
-        $vaNumbers         = $notification->va_numbers ?? [];
+        $rawNotification = json_decode($rawBody, true);
+        if (!$rawNotification) {
+            Log::warning('Midtrans webhook: empty or invalid JSON payload');
+            return $this->errorPayload('Invalid payload', [], 400);
+        }
+
+        $orderId           = $rawNotification['order_id'] ?? null;
+        $transactionStatus = $rawNotification['transaction_status'] ?? null;
+        $fraudStatus       = $rawNotification['fraud_status'] ?? null;
+        $paymentType       = $rawNotification['payment_type'] ?? null;
+
+        $vaNumber = null;
+        if (isset($rawNotification['va_numbers']) && is_array($rawNotification['va_numbers'])) {
+            $vaNumber = $rawNotification['va_numbers'][0]['va_number'] ?? null;
+        } elseif (isset($rawNotification['permata_va_number'])) {
+            $vaNumber = $rawNotification['permata_va_number'];
+        }
 
         Log::info('Midtrans webhook received', [
             'order_id' => $orderId,
@@ -156,12 +177,12 @@ class PaymentService
             return $this->successPayload(null, 'Sudah diproses.');
         }
 
-        DB::transaction(function () use ($payment, $transactionStatus, $fraudStatus, $vaNumbers) {
+        DB::transaction(function () use ($payment, $transactionStatus, $fraudStatus, $vaNumber) {
             $transaction = $payment->transaction;
 
             // Simpan nomor VA jika ada
-            if (!empty($vaNumbers)) {
-                $payment->update(['va_number' => $vaNumbers[0]->va_number ?? null]);
+            if ($vaNumber) {
+                $payment->update(['va_number' => $vaNumber]);
             }
 
             if ($transactionStatus === 'capture') {

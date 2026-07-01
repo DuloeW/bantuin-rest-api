@@ -2,6 +2,7 @@
 
 namespace App\Service\Offer;
 
+use App\Enum\ActiveOffEnum;
 use App\Enum\OfferingStatusEnum;
 use App\Enum\OpenCloseEnum;
 use App\Models\Offer;
@@ -34,6 +35,12 @@ class FinalizeOfferService
      */
     public function finalize(Offer $offer, string $actorId, array $data): array
     {
+        \Illuminate\Support\Facades\Log::info('FINALIZE OFFER SERVICE CALLED:', [
+            'data' => $data,
+            'offer_id' => $offer->id,
+            'actor_id' => $actorId,
+        ]);
+
         $post = $offer->post;
 
         // 1. Pastikan post ada
@@ -55,14 +62,19 @@ class FinalizeOfferService
         // 3. Hanya offer yang statusnya pending yang bisa di-finalize
         if ($offer->status !== OfferingStatusEnum::PENDING->value) {
             if ($offer->status === OfferingStatusEnum::ACCEPTED->value) {
+                // Cek apakah sudah ada transaksi untuk offer ini
+                $hasTransaction = Transaction::where('offer_id', $offer->id)->exists();
+                if ($hasTransaction) {
+                    throw ValidationException::withMessages([
+                        'offer' => ['This offer has already been finalized.'],
+                    ]);
+                }
+                // Jika belum ada transaksi, ijinkan untuk diproses (lanjut ke pembuatan transaksi)
+            } else {
                 throw ValidationException::withMessages([
-                    'offer' => ['This offer has already been finalized.'],
+                    'offer' => ['Only pending or accepted offers without transactions can be finalized.'],
                 ]);
             }
-
-            throw ValidationException::withMessages([
-                'offer' => ['Only pending offers can be finalized.'],
-            ]);
         }
 
         // 4. Pastikan belum ada offer lain yang diterima
@@ -97,12 +109,12 @@ class FinalizeOfferService
             // Accept offer yang dipilih
             $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
 
-            // Tutup post
-            $lockedPost->update(['status' => OpenCloseEnum::CLOSED->value]);
-
-            // Tutup request detail (jika ada)
+            // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
             if ($lockedPost->requestDetail) {
                 $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+            }
+            if ($lockedPost->offerDetail) {
+                $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
             }
 
             // Buat transaksi baru
