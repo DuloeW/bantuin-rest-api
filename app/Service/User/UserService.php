@@ -134,7 +134,19 @@ class UserService
 
         $posts = $query->get();
 
-        return $this->successPayload($posts, 'user posts retrieved successfully');
+        $user->load([
+            'photoProfile',
+            'province:id,name',
+            'city:id,name',
+            'district:id,name',
+            'village:id,name',
+            'skills:id,title',
+        ]);
+
+        return $this->successPayload([
+            'user' => $user,
+            'posts' => $posts,
+        ], 'user posts retrieved successfully');
     }
 
     // TODO fitur untuk menampilkan history user

@@ -79,6 +79,7 @@ class FinalizeOfferService
 
         // 4. Pastikan belum ada offer lain yang diterima
         $alreadyAccepted = $post->offers()
+            ->where('id', '!=', $offer->id)
             ->where('status', OfferingStatusEnum::ACCEPTED->value)
             ->exists();
 
