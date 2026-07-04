@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Transaction extends Model
 {
@@ -14,12 +15,12 @@ class Transaction extends Model
     protected $guarded = [];
 
     protected $casts = [
-        'final_price'  => 'decimal:2',
-        'admin_fee'    => 'decimal:2',
-        'total_price'  => 'decimal:2',
-        'deadline'     => 'datetime',
-        'started_at'   => 'datetime',
-        'finished_at'  => 'datetime',
+        'final_price' => 'decimal:2',
+        'admin_fee' => 'decimal:2',
+        'total_price' => 'decimal:2',
+        'deadline' => 'datetime',
+        'started_at' => 'datetime',
+        'finished_at' => 'datetime',
     ];
 
     public function reportTransaction(): HasOne
@@ -50,5 +51,15 @@ class Transaction extends Model
     public function offer(): BelongsTo
     {
         return $this->belongsTo(Offer::class, 'offer_id');
+    }
+
+    public function images(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
+
+    public function completionImages(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('type', 'completion');
     }
 }

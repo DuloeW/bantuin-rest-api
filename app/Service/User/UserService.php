@@ -205,6 +205,21 @@ class UserService
         return $this->successPayload([], 'user deleted successfully');
     }
 
+    public function changePassword(string $userId, string $newPassword)
+    {
+        try {
+            $user = User::findOrFail($userId);
+            $user->password = bcrypt($newPassword);
+            $user->save();
+
+            return $this->successPayload([], 'Password changed successfully');
+        } catch (ModelNotFoundException $e) {
+            return $this->errorPayload('user not found', [], 404);
+        } catch (Exception $e) {
+            return $this->errorPayload($e->getMessage(), [], 500);
+        }
+    }
+
     private function uploadProfileImage(array $uploadedImages, User $user)
     {
         $storedPaths = [];
