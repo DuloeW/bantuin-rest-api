@@ -144,7 +144,7 @@ class UserService
         ]);
 
         return $this->successPayload([
-            'user' => $user,
+            'users' => $user,
             'posts' => $posts,
         ], 'user posts retrieved successfully');
     }
