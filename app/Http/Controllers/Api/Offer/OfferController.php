@@ -80,6 +80,18 @@ class OfferController extends Controller
         return response()->json($this->successPayload($offers), 200);
     }
 
+    public function show(string $offerId): JsonResponse
+    {
+        $offer = Offer::with(['transaction', 'post', 'requester', 'helper'])->findOrFail($offerId);
+
+        $userId = auth('sanctum')->id();
+        if ($offer->requester_id !== $userId && $offer->helper_id !== $userId) {
+            abort(403, 'You are not authorized to view this offer.');
+        }
+
+        return response()->json($this->successPayload($offer), 200);
+    }
+
     /**
      * Finalize an offer: accept it, create a transaction, and close the post.
      * Called from the "Final Service Agreement" form in the mobile app.
