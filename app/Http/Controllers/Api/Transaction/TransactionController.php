@@ -60,4 +60,97 @@ class TransactionController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    /**
+     * Approve a transaction and release funds.
+     */
+    public function approve(Request $request, string $id): JsonResponse
+    {
+        $result = $this->transactionService->approveTransaction(
+            $id,
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Request a revision for a transaction.
+     */
+    public function revision(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'revision_notes' => 'required|string|max:2000',
+        ]);
+
+        $result = $this->transactionService->requestRevision(
+            $id,
+            auth('sanctum')->id(),
+            $data
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Respond to a transaction revision (Accept/Fix or Reject/Dispute).
+     */
+    public function respondRevision(Request $request, string $revisionId): JsonResponse
+    {
+        $data = $request->validate([
+            'action' => 'required|string|in:fixed,rejected',
+            'completion_notes' => 'required_if:action,fixed|nullable|string|max:2000',
+            'completion_images' => 'required_if:action,fixed|nullable|array|min:1',
+            'completion_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
+            'dispute_reason' => 'required_if:action,rejected|nullable|string|max:2000',
+        ]);
+
+        $uploadedImages = $request->file('completion_images') ?? [];
+
+        $result = $this->transactionService->respondToRevision(
+            $revisionId,
+            auth('sanctum')->id(),
+            $data,
+            $uploadedImages
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Request a refund for a transaction.
+     */
+    public function requestRefund(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'reason' => 'required|string|max:2000',
+        ]);
+
+        $result = $this->transactionService->requestRefund(
+            $id,
+            auth('sanctum')->id(),
+            $data
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Respond to a refund request (Approve or Reject).
+     */
+    public function respondRefund(Request $request, string $refundId): JsonResponse
+    {
+        $data = $request->validate([
+            'action' => 'required|string|in:approved,rejected',
+            'dispute_reason' => 'required_if:action,rejected|nullable|string|max:2000',
+        ]);
+
+        $result = $this->transactionService->respondToRefund(
+            $refundId,
+            auth('sanctum')->id(),
+            $data
+        );
+
+        return response()->json($result, $result['code']);
+    }
 }

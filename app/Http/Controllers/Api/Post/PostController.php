@@ -117,4 +117,22 @@ class PostController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function search(Request $request)
+    {
+        $filters = $request->only([
+            'query',
+            'province_id',
+            'city_id',
+            'district_id',
+            'village_id',
+            'min_price',
+            'max_price',
+            'type',
+            'category_id',
+        ]);
+
+        $result = $this->postService->searchPost($filters);
+
+        return response()->json($result, $result['code']);
+    }
 }

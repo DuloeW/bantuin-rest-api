@@ -40,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/categories/{id}', [CategoryController::class, 'delete']);
 
     Route::get('/posts', [PostController::class, 'getAll']);
+    Route::get('/posts/search', [PostController::class, 'search']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
     Route::post('/posts/offer', [PostController::class, 'createOffer']);
@@ -80,4 +81,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/payments/transactions/{transactionId}', [PaymentController::class, 'status']);
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::post('/transactions/{id}/complete', [TransactionController::class, 'complete']);
+    Route::post('/transactions/{id}/approve', [TransactionController::class, 'approve']);
+    Route::post('/transactions/{id}/revision', [TransactionController::class, 'revision']);
+    Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);
+    Route::post('/transactions/{id}/refund', [TransactionController::class, 'requestRefund']);
+    Route::post('/refunds/{refundId}/respond', [TransactionController::class, 'respondRefund']);
 });

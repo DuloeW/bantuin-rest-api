@@ -62,4 +62,9 @@ class Transaction extends Model
     {
         return $this->morphMany(Image::class, 'imageable')->where('type', 'completion');
     }
+
+    public function revisions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(TransactionRevision::class);
+    }
 }
