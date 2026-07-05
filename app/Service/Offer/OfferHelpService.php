@@ -2,6 +2,7 @@
 
 namespace App\Service\Offer;
 
+use App\Enum\ActiveOffEnum;
 use App\Enum\OfferingStatusEnum;
 use App\Enum\OpenCloseEnum;
 use App\Models\BankAccount;
@@ -87,9 +88,9 @@ class OfferHelpService
             ]);
         }
 
-        if ($post->type !== 'request') {
+        if (!in_array($post->type, ['request', 'offer'])) {
             throw ValidationException::withMessages([
-                'post_id' => ['You can only accept offers on a request post.']
+                'post_id' => ['Invalid post type.']
             ]);
         }
 
@@ -109,25 +110,27 @@ class OfferHelpService
             ]);
         }
 
-        // Additional business checks
-        $requestDetail = $post->requestDetail;
-        if (!$requestDetail) {
-            throw ValidationException::withMessages([
-                'post_id' => ['Request details not found for this post.']
-            ]);
-        }
+        // Additional business checks for request posts
+        if ($post->type === 'request') {
+            $requestDetail = $post->requestDetail;
+            if (!$requestDetail) {
+                throw ValidationException::withMessages([
+                    'post_id' => ['Request details not found for this post.']
+                ]);
+            }
 
-        if (isset($requestDetail->deadline) && Carbon::now()->greaterThan($requestDetail->deadline)) {
-            throw ValidationException::withMessages([
-                'post_id' => ['The request deadline has passed.']
-            ]);
-        }
+            if (isset($requestDetail->deadline) && Carbon::now()->greaterThan($requestDetail->deadline)) {
+                throw ValidationException::withMessages([
+                    'post_id' => ['The request deadline has passed.']
+                ]);
+            }
 
-        $minPrice = $requestDetail->min_price;
-        if ($minPrice !== null && $offer->offered_price < $minPrice) {
-            throw ValidationException::withMessages([
-                'offered_price' => ['The offered price is lower than the minimum allowed.']
-            ]);
+            $minPrice = $requestDetail->min_price;
+            if ($minPrice !== null && $offer->offered_price < $minPrice) {
+                throw ValidationException::withMessages([
+                    'offered_price' => ['The offered price is lower than the minimum allowed.']
+                ]);
+            }
         }
 
         // Perform acceptance atomically to avoid race conditions
@@ -166,9 +169,13 @@ class OfferHelpService
             // Accept selected offer
             $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
 
-            $lockedPost->update(['status' => OpenCloseEnum::CLOSED->value]);
-
-            $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+            // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
+            if ($lockedPost->requestDetail) {
+                $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+            }
+            if ($lockedPost->offerDetail) {
+                $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
+            }
         });
 
         return $this->successPayload($offer->fresh(), 'Offer accepted successfully.');

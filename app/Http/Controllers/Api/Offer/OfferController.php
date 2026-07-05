@@ -66,7 +66,8 @@ class OfferController extends Controller
             'offer_id' => 'required|exists:offers,id',
         ]);
 
-        $offer = $this->offerHelpService->acceptHelper($data['offer_id'], auth('sanctum')->id());
+        $offerInstance = Offer::findOrFail($data['offer_id']);
+        $offer = $this->offerHelpService->acceptHelper($offerInstance, auth('sanctum')->id());
 
         return response()->json($offer, $offer['code']);
     }

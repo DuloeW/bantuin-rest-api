@@ -49,4 +49,11 @@ class AuthService
             'user' => $user,
         ], 'registration successful', 201);
     }
+
+    public function logout(Request  $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+        
+        return $this->successPayload([], 'logout successful');
+    }
 }

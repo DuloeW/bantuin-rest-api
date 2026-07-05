@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\Offer\OfferController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Post\PostController;
 use App\Http\Controllers\Api\Skill\SkillController;
+use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -21,9 +22,12 @@ Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
+    Route::post('/logout', [AuthController::class,'logout']);
+
     Route::get('/users/profile', [UserController::class, 'getProfile']);
     Route::get('/users', [UserController::class, 'getAll']);
     Route::put('/users', [UserController::class, 'update']);
+    Route::put('/users/password', [UserController::class, 'changePassword']);
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
@@ -36,6 +40,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/categories/{id}', [CategoryController::class, 'delete']);
 
     Route::get('/posts', [PostController::class, 'getAll']);
+    Route::get('/posts/search', [PostController::class, 'search']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
     Route::post('/posts/offer', [PostController::class, 'createOffer']);
@@ -52,6 +57,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
 
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
+    Route::post('/offers/accept', [OfferController::class, 'acceptHelper']);
     Route::get('/offers/{offerId}', [OfferController::class, 'show']);
     Route::post('/offers/{offerId}/finalize', [OfferController::class, 'finalizeOffer']);
 
@@ -73,4 +79,11 @@ Route::middleware('auth:sanctum')->group(function () {
     // Payment & Escrow
     Route::post('/payments', [PaymentController::class, 'create']);
     Route::get('/payments/transactions/{transactionId}', [PaymentController::class, 'status']);
+    Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::post('/transactions/{id}/complete', [TransactionController::class, 'complete']);
+    Route::post('/transactions/{id}/approve', [TransactionController::class, 'approve']);
+    Route::post('/transactions/{id}/revision', [TransactionController::class, 'revision']);
+    Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);
+    Route::post('/transactions/{id}/refund', [TransactionController::class, 'requestRefund']);
+    Route::post('/refunds/{refundId}/respond', [TransactionController::class, 'respondRefund']);
 });
