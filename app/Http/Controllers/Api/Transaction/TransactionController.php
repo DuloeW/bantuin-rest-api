@@ -90,12 +90,17 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'revision_notes' => 'required|string|max:2000',
+            'revision_images' => 'sometimes|array|max:5',
+            'revision_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+
+        $uploadedImages = $request->file('revision_images') ?? [];
 
         $result = $this->transactionService->requestRevision(
             $id,
             auth('sanctum')->id(),
-            $data
+            $data,
+            $uploadedImages
         );
 
         return response()->json($result, $result['code']);
@@ -230,7 +235,7 @@ class TransactionController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'status' => 'sometimes|string|in:pending,on_progress,completed,disputed,cancelled',
+            'status' => 'sometimes|string|in:pending,on_progress,pending_approval,completed,disputed,cancelled',
             'completion_notes' => 'sometimes|nullable|string|max:2000',
             'finished_at' => 'sometimes|nullable|date',
             'completion_images' => 'sometimes|array|min:1',
@@ -257,6 +262,19 @@ class TransactionController extends Controller
             $id,
             auth('sanctum')->id()
         );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Get a transaction by its ID.
+     *
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function getById(string $id): JsonResponse
+    {
+        $result = $this->transactionService->getTransactionById($id);
 
         return response()->json($result, $result['code']);
     }

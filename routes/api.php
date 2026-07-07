@@ -93,11 +93,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/transactions', [TransactionController::class, 'index']);
     Route::get('/transactions/active', [TransactionController::class, 'activeTransactions']);
     Route::get('/transactions/reviewed', [TransactionController::class, 'reviewedHistory']);
+    Route::get('/transactions/{id}', [TransactionController::class, 'getById']);
     Route::post('/transactions/{id}/reviews', [TransactionController::class, 'review']);
     Route::post('/transactions/{id}/complete', [TransactionController::class, 'complete']);
     Route::post('/transactions/{id}/update', [TransactionController::class, 'update']);
     Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
-    Route::post('/transactions/{id}/approve', [TransactionController::class, 'app   rove']);
+    Route::post('/transactions/{id}/approve', [TransactionController::class, 'approve']);
     Route::post('/transactions/{id}/transfer', [TransactionController::class, 'transfer']);
     Route::post('/transactions/{id}/revision', [TransactionController::class, 'revision']);
     Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);

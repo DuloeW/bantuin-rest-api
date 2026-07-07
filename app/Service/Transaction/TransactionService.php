@@ -60,7 +60,7 @@ class TransactionService
 
                 // Update transaction fields
                 $transaction->update([
-                    'status' => 'completed',
+                    'status' => 'pending_approval',
                     'completion_notes' => $data['completion_notes'],
                     'finished_at' => now(),
                 ]);
@@ -157,9 +157,9 @@ class TransactionService
                     ]);
                 }
 
-                if ($transaction->status !== 'on_progress') {
+                if ($transaction->status !== 'pending_approval') {
                     throw ValidationException::withMessages([
-                        'status' => ['Transaksi hanya dapat disetujui jika berstatus "on_progress". Status saat ini: ' . $transaction->status]
+                        'status' => ['Transaksi hanya dapat disetujui jika berstatus "pending_approval". Status saat ini: ' . $transaction->status]
                     ]);
                 }
 
@@ -213,10 +213,12 @@ class TransactionService
     /**
      * Request a revision for the helper's work.
      */
-    public function requestRevision(string $transactionId, string $requesterId, array $data): array
+    public function requestRevision(string $transactionId, string $requesterId, array $data, array $uploadedImages = []): array
     {
+        $uploadedPaths = [];
+
         try {
-            return DB::transaction(function () use ($transactionId, $requesterId, $data) {
+            return DB::transaction(function () use ($transactionId, $requesterId, $data, $uploadedImages, &$uploadedPaths) {
                 $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
 
                 if (!$transaction) {
@@ -231,9 +233,9 @@ class TransactionService
                     ]);
                 }
 
-                if ($transaction->status !== 'on_progress') {
+                if ($transaction->status !== 'pending_approval') {
                     throw ValidationException::withMessages([
-                        'status' => ['Revisi hanya dapat diminta jika transaksi berstatus "on_progress". Status saat ini: ' . $transaction->status]
+                        'status' => ['Revisi hanya dapat diminta jika transaksi berstatus "pending_approval". Status saat ini: ' . $transaction->status]
                     ]);
                 }
 
@@ -265,11 +267,34 @@ class TransactionService
                     'status' => 'pending',
                 ]);
 
-                return $this->successPayload($revision, 'Permintaan revisi berhasil dikirim.');
+                // Store uploaded revision images
+                foreach ($uploadedImages as $imageFile) {
+                    $path = $imageFile->store('transactions/revisions', 'public');
+                    $uploadedPaths[] = $path;
+
+                    $revision->images()->create([
+                        'url' => $path,
+                        'file_name' => $imageFile->getClientOriginalName(),
+                        'file_type' => $imageFile->getClientMimeType(),
+                        'type' => 'tr-revision',
+                    ]);
+                }
+
+                // Update transaction status back to on_progress for helper to re-work
+                $transaction->update([
+                    'status' => 'on_progress',
+                ]);
+
+                return $this->successPayload($revision->load('images'), 'Permintaan revisi berhasil dikirim.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
         } catch (Exception $e) {
+            // Delete uploaded files on transaction failure
+            foreach ($uploadedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
     }
@@ -314,8 +339,9 @@ class TransactionService
                         'completed_at' => now(),
                     ]);
 
-                    // Update transaction completion notes
+                    // Update transaction completion notes and set status to pending_approval
                     $transaction->update([
+                        'status' => 'pending_approval',
                         'completion_notes' => $data['completion_notes'],
                     ]);
 
@@ -874,6 +900,35 @@ class TransactionService
         } catch (Exception $e) {
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
+    }
+
+    /**
+     * Get a transaction by its ID with all its relations.
+     *
+     * @param string $id
+     * @return array
+     */
+    public function getTransactionById(string $id): array
+    {
+        $transaction = Transaction::with([
+            'completionImages',
+            'helper',
+            'helper.photoProfile',
+            'requester',
+            'requester.photoProfile',
+            'offer.post.images',
+            'offer.post.category',
+            'payment',
+            'escrow',
+            'revisions',
+            'reviews',
+        ])->find($id);
+
+        if (!$transaction) {
+            return $this->errorPayload('Transaksi tidak ditemukan.', [], 404);
+        }
+
+        return $this->successPayload($transaction, 'Transaksi berhasil diambil.');
     }
 }
 
