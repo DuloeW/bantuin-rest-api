@@ -745,5 +745,135 @@ class TransactionService
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
     }
+
+    /**
+     * Update a transaction's status, completion notes, finished_at, and completion images.
+     *
+     * @param string $transactionId
+     * @param array $data
+     * @param array|null $uploadedImages
+     * @return array
+     */
+    public function updateTransaction(string $transactionId, array $data, ?array $uploadedImages = []): array
+    {
+        $uploadedPaths = [];
+
+        try {
+            return DB::transaction(function () use ($transactionId, $data, $uploadedImages, &$uploadedPaths) {
+                // Lock transaction to prevent race conditions
+                $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
+
+                if (!$transaction) {
+                    throw ValidationException::withMessages([
+                        'transaction' => ['Transaksi tidak ditemukan.']
+                    ]);
+                }
+
+                $updateData = [];
+                if (array_key_exists('status', $data)) {
+                    $updateData['status'] = $data['status'];
+                }
+                if (array_key_exists('completion_notes', $data)) {
+                    $updateData['completion_notes'] = $data['completion_notes'];
+                }
+                if (array_key_exists('finished_at', $data)) {
+                    $updateData['finished_at'] = $data['finished_at'];
+                }
+
+                if (!empty($updateData)) {
+                    $transaction->update($updateData);
+                }
+
+                // Replace completion images if new ones are uploaded
+                if (!empty($uploadedImages)) {
+                    foreach ($transaction->completionImages as $oldImage) {
+                        Storage::disk('public')->delete($oldImage->url);
+                        $oldImage->delete();
+                    }
+
+                    foreach ($uploadedImages as $imageFile) {
+                        $path = $imageFile->store('transactions/completion', 'public');
+                        $uploadedPaths[] = $path;
+
+                        $transaction->images()->create([
+                            'url' => $path,
+                            'file_name' => $imageFile->getClientOriginalName(),
+                            'file_type' => $imageFile->getClientMimeType(),
+                            'type' => 'completion',
+                        ]);
+                    }
+                }
+
+                // Reload relations and return updated transaction
+                $transaction->load(['completionImages', 'helper', 'requester', 'offer']);
+
+                return $this->successPayload($transaction, 'Transaksi berhasil diperbarui.');
+            });
+        } catch (ValidationException $e) {
+            return $this->errorPayload($e->getMessage(), $e->errors(), 422);
+        } catch (Exception $e) {
+            // Delete uploaded files on transaction failure
+            foreach ($uploadedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
+        }
+    }
+
+    /**
+     * Cancel a transaction manually.
+     *
+     * @param string $transactionId
+     * @param string $userId
+     * @return array
+     */
+    public function cancelTransaction(string $transactionId, string $userId): array
+    {
+        try {
+            return DB::transaction(function () use ($transactionId, $userId) {
+                // Lock transaction to prevent race conditions
+                $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
+
+                if (!$transaction) {
+                    throw ValidationException::withMessages([
+                        'transaction' => ['Transaksi tidak ditemukan.']
+                    ]);
+                }
+
+                // Check authorization (only requester or helper can cancel)
+                if ($transaction->requester_id !== $userId && $transaction->helper_id !== $userId) {
+                    throw ValidationException::withMessages([
+                        'authorization' => ['Anda tidak memiliki otorisasi untuk membatalkan transaksi ini.']
+                    ]);
+                }
+
+                // Only allow cancellation if status is pending
+                if ($transaction->status !== 'pending') {
+                    throw ValidationException::withMessages([
+                        'status' => ['Transaksi hanya dapat dibatalkan jika berstatus "pending". Status saat ini: ' . $transaction->status]
+                    ]);
+                }
+
+                // Update transaction status to cancelled
+                $transaction->update([
+                    'status' => 'cancelled',
+                ]);
+
+                // Update payment status if exists
+                if ($transaction->payment) {
+                    $transaction->payment->update([
+                        'status' => 'failed',
+                    ]);
+                }
+
+                return $this->successPayload($transaction, 'Transaksi berhasil dibatalkan.');
+            });
+        } catch (ValidationException $e) {
+            return $this->errorPayload($e->getMessage(), $e->errors(), 422);
+        } catch (Exception $e) {
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
+        }
+    }
 }
 

@@ -436,6 +436,36 @@ class PostService
         return $this->successPayload($posts, 'nearest posts retrieved successfully');
     }
 
+    public function getPostById(string $id)
+    {
+        $post = Post::with([
+            'category',
+            'users',
+            'users.photoProfile',
+            'requestDetail' => function ($query) {
+                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+            },
+            'requestDetail.province:id,name',
+            'requestDetail.city:id,name',
+            'requestDetail.district:id,name',
+            'requestDetail.village:id,name',
+            'offerDetail' => function ($query) {
+                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+            },
+            'offerDetail.province:id,name',
+            'offerDetail.city:id,name',
+            'offerDetail.district:id,name',
+            'offerDetail.village:id,name',
+            'images',
+        ])->find($id);
+
+        if (!$post) {
+            return $this->errorPayload('post not found', [], 404);
+        }
+
+        return $this->successPayload($post, 'post retrieved successfully');
+    }
+
     private function uploadImages(array $uploadedImages, Post $post)
     {
         foreach ($uploadedImages as $imageFile) {

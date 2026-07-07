@@ -176,7 +176,7 @@ class TransactionController extends Controller
         );
 
         return response()->json($result, $result['code']);
-    }
+}
 
     /**
      * Submit a review for a transaction.
@@ -216,6 +216,47 @@ class TransactionController extends Controller
     public function transfer(Request $request, string $id): JsonResponse
     {
         $result = $this->transactionService->disburseToHelper($id);
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Update a transaction's status, completion notes, finished_at, and completion images.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => 'sometimes|string|in:pending,on_progress,completed,disputed,cancelled',
+            'completion_notes' => 'sometimes|nullable|string|max:2000',
+            'finished_at' => 'sometimes|nullable|date',
+            'completion_images' => 'sometimes|array|min:1',
+            'completion_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $uploadedImages = $request->file('completion_images') ?? [];
+
+        $result = $this->transactionService->updateTransaction($id, $data, $uploadedImages);
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Cancel a transaction manually.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $result = $this->transactionService->cancelTransaction(
+            $id,
+            auth('sanctum')->id()
+        );
 
         return response()->json($result, $result['code']);
     }

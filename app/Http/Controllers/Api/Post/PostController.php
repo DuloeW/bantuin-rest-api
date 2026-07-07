@@ -148,4 +148,11 @@ class PostController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    public function getById(string $id)
+    {
+        $result = $this->postService->getPostById($id);
+
+        return response()->json($result, $result['code']);
+    }
 }
