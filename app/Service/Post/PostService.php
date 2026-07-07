@@ -57,6 +57,97 @@ class PostService
         return $this->successPayload(['count' => $postCount], 'total user posts retrieved successfully');
     }
 
+    public function getMyJobs(string $userId, ?string $type)
+    {
+        $query = Post::where('user_id', '!=', $userId);
+
+        if ($type === 'request') {
+            $query->where('type', 'request')
+                ->whereHas('offers', function ($q) use ($userId) {
+                    $q->where('helper_id', $userId);
+                })
+                ->with([
+                    'category',
+                    'users',
+                    'users.photoProfile',
+                    'images',
+                    'offers' => function ($q) use ($userId) {
+                        $q->where('helper_id', $userId);
+                    },
+                    'requestDetail' => function ($q) {
+                        $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                    },
+                    'requestDetail.province:id,name',
+                    'requestDetail.city:id,name',
+                    'requestDetail.district:id,name',
+                    'requestDetail.village:id,name',
+                ]);
+        } elseif ($type === 'offer') {
+            $query->where('type', 'offer')
+                ->whereHas('offers', function ($q) use ($userId) {
+                    $q->where('requester_id', $userId);
+                })
+                ->with([
+                    'category',
+                    'users',
+                    'users.photoProfile',
+                    'images',
+                    'offers' => function ($q) use ($userId) {
+                        $q->where('requester_id', $userId);
+                    },
+                    'offerDetail' => function ($q) {
+                        $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                    },
+                    'offerDetail.province:id,name',
+                    'offerDetail.city:id,name',
+                    'offerDetail.district:id,name',
+                    'offerDetail.village:id,name',
+                ]);
+        } else {
+            // type is null, load both request and offer interactions
+            $query->where(function ($q) use ($userId) {
+                $q->where(function ($sq1) use ($userId) {
+                    $sq1->where('type', 'request')
+                        ->whereHas('offers', function ($o) use ($userId) {
+                            $o->where('helper_id', $userId);
+                        });
+                })->orWhere(function ($sq2) use ($userId) {
+                    $sq2->where('type', 'offer')
+                        ->whereHas('offers', function ($o) use ($userId) {
+                            $o->where('requester_id', $userId);
+                        });
+                });
+            })->with([
+                'category',
+                'users',
+                'users.photoProfile',
+                'images',
+                'offers' => function ($q) use ($userId) {
+                    $q->where('helper_id', $userId)
+                      ->orWhere('requester_id', $userId);
+                },
+                'requestDetail' => function ($q) {
+                    $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                },
+                'requestDetail.province:id,name',
+                'requestDetail.city:id,name',
+                'requestDetail.district:id,name',
+                'requestDetail.village:id,name',
+                'offerDetail' => function ($q) {
+                    $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                },
+                'offerDetail.province:id,name',
+                'offerDetail.city:id,name',
+                'offerDetail.district:id,name',
+                'offerDetail.village:id,name',
+            ]);
+        }
+
+        $posts = $query->get();
+
+        return $this->successPayload($posts, 'interacted user posts retrieved successfully');
+    }
+
     // TODO menambahkan logic untuk filter by category name
     public function getAllPostsWithRequestDetails()
     {
@@ -297,6 +388,52 @@ class PostService
         $posts = $query->get();
 
         return $this->successPayload($posts, 'posts searched and filtered successfully');
+    }
+
+    public function getNearMePosts(array $data)
+    {
+        $latitude = (float) $data['latitude'];
+        $longitude = (float) $data['longitude'];
+        $maxDistanceKm = isset($data['radius']) ? (float) $data['radius'] : 50.0; // default 50 km
+
+        $posts = Post::with([
+            'category',
+            'users',
+            'users.photoProfile',
+            'requestDetail' => function ($q) {
+                $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+            },
+            'requestDetail.province:id,name',
+            'requestDetail.city:id,name',
+            'requestDetail.district:id,name',
+            'requestDetail.village:id,name',
+            'offerDetail' => function ($q) {
+                $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+            },
+            'offerDetail.province:id,name',
+            'offerDetail.city:id,name',
+            'offerDetail.district:id,name',
+            'offerDetail.village:id,name',
+            'images',
+        ])
+        ->select('posts.*')
+        ->leftJoin('request_posts', 'request_posts.post_id', '=', 'posts.id')
+        ->leftJoin('service_posts', 'service_posts.post_id', '=', 'posts.id')
+        ->selectRaw("
+            ST_Distance_Sphere(
+                COALESCE(request_posts.location, service_posts.location),
+                ST_GeomFromText(?, 4326)
+            ) as distance_meters
+        ", ["POINT($latitude $longitude)"])
+        ->where(function($q) {
+            $q->whereNotNull('request_posts.location')
+              ->orWhereNotNull('service_posts.location');
+        })
+        ->having('distance_meters', '<=', $maxDistanceKm * 1000)
+        ->orderBy('distance_meters', 'asc')
+        ->get();
+
+        return $this->successPayload($posts, 'nearest posts retrieved successfully');
     }
 
     private function uploadImages(array $uploadedImages, Post $post)

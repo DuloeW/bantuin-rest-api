@@ -12,6 +12,8 @@ enum BankCodeEnum: string
     case DANAMON  = 'danamon';
     case BSI      = 'bsi';
     case PERMATA  = 'permata';
+    case GOPAY    = 'gopay';
+    case CARD     = 'card';
 
     /**
      * Nama tampilan bank.
@@ -27,6 +29,8 @@ enum BankCodeEnum: string
             self::DANAMON => 'Bank Danamon',
             self::BSI     => 'Bank Syariah Indonesia (BSI)',
             self::PERMATA => 'Bank Permata',
+            self::GOPAY   => 'GoPay / QRIS',
+            self::CARD    => 'Credit / Debit Card',
         };
     }
 

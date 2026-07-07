@@ -135,4 +135,17 @@ class PostController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    public function nearMe(Request $request)
+    {
+        $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'radius' => 'sometimes|numeric|min:0.1',
+        ]);
+
+        $result = $this->postService->getNearMePosts($request->only(['latitude', 'longitude', 'radius']));
+
+        return response()->json($result, $result['code']);
+    }
 }

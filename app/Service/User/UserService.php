@@ -39,6 +39,14 @@ class UserService
             'skills:id,title',
         ]);
 
+        $user->loadCount([
+            'posts',
+            'completedRequestPosts as requested_count',
+            'helpedTransactions as helped_count',
+        ]);
+
+
+
         return $this->successPayload($user, 'user retrieved successfully');
     }
 
@@ -76,7 +84,92 @@ class UserService
             'skills:id,title',
         ]);
 
+        $user->loadCount([
+            'posts',
+            'completedRequestPosts as requested_count',
+            'helpedTransactions as helped_count',
+        ]);
+
+
+
         return $this->successPayload($user, 'profile retrieved successfully');
+    }
+
+    public function getActivityAnalytics(string $userId)
+    {
+        try {
+            $totalEarnings = (float) \App\Models\Transaction::where('helper_id', $userId)
+                ->where('status', 'completed')
+                ->sum('final_price');
+
+            $totalSpending = (float) \App\Models\Transaction::where('requester_id', $userId)
+                ->where('status', 'completed')
+                ->sum('total_price');
+
+            $activeEscrowBalance = (float) \App\Models\EscrowTransaction::where('status', 'held')
+                ->whereHas('transaction', function ($q) use ($userId) {
+                    $q->where('requester_id', $userId)
+                      ->orWhere('helper_id', $userId);
+                })
+                ->sum('held_amount');
+
+            $completedServicesCount = \App\Models\Transaction::where('helper_id', $userId)
+                ->where('status', 'completed')
+                ->count();
+
+            $netIncome = $totalEarnings - $totalSpending;
+            $cashFlowStatus = $netIncome >= 0 ? 'Surplus' : 'Deficit';
+
+            $currentYear = date('Y');
+
+            $earningsByMonth = \App\Models\Transaction::selectRaw('MONTH(finished_at) as month, SUM(final_price) as total')
+                ->where('helper_id', $userId)
+                ->where('status', 'completed')
+                ->whereYear('finished_at', $currentYear)
+                ->groupBy('month')
+                ->pluck('total', 'month')
+                ->toArray();
+
+            $spendingByMonth = \App\Models\Transaction::selectRaw('MONTH(finished_at) as month, SUM(total_price) as total')
+                ->where('requester_id', $userId)
+                ->where('status', 'completed')
+                ->whereYear('finished_at', $currentYear)
+                ->groupBy('month')
+                ->pluck('total', 'month')
+                ->toArray();
+
+            $months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            $incomeTrend = [];
+            $spendingOverview = [];
+
+            for ($m = 1; $m <= 12; $m++) {
+                $incomeTrend[] = [
+                    'month' => $months[$m - 1],
+                    'amount' => (float) ($earningsByMonth[$m] ?? 0)
+                ];
+                $spendingOverview[] = [
+                    'month' => $months[$m - 1],
+                    'amount' => (float) ($spendingByMonth[$m] ?? 0)
+                ];
+            }
+
+            return $this->successPayload([
+                'total_earnings' => $totalEarnings,
+                'total_spending' => $totalSpending,
+                'active_escrow_balance' => $activeEscrowBalance,
+                'completed_services_count' => $completedServicesCount,
+                'cash_flow' => [
+                    'total_earnings' => $totalEarnings,
+                    'total_spending' => $totalSpending,
+                    'net_income' => $netIncome,
+                    'status' => $cashFlowStatus,
+                ],
+                'income_trend' => $incomeTrend,
+                'spending_overview' => $spendingOverview,
+            ], 'Activity analytics retrieved successfully');
+        } catch (\Exception $e) {
+            return $this->errorPayload($e->getMessage(), [], 500);
+        }
     }
 
     public function getUsersPosts(Request $request, string $id)
@@ -166,11 +259,6 @@ class UserService
 
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
-
-                $user->skills()->sync($data['skills'] ?? []);
-
-                unset($data['skills']);
-
                 $user->update($data);
 
                 // $this->deleteStoredImage($currentProfileImage);
@@ -203,6 +291,29 @@ class UserService
         $user->delete();
 
         return $this->successPayload([], 'user deleted successfully');
+    }
+
+    public function updateWalletBalance(string $userId, ?float $amount, ?float $walletBalance)
+    {
+        try {
+            $user = User::findOrFail($userId);
+
+            if ($walletBalance !== null) {
+                $user->wallet_balance = $walletBalance;
+            } elseif ($amount !== null) {
+                $user->wallet_balance += $amount;
+            }
+
+            $user->save();
+
+            return $this->successPayload([
+                'wallet_balance' => (float) $user->wallet_balance
+            ], 'Wallet balance updated successfully');
+        } catch (ModelNotFoundException $e) {
+            return $this->errorPayload('user not found', [], 404);
+        } catch (Exception $e) {
+            return $this->errorPayload($e->getMessage(), [], 500);
+        }
     }
 
     public function changePassword(string $userId, string $newPassword)

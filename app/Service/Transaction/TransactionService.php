@@ -6,10 +6,13 @@ use App\Models\Transaction;
 use App\Models\TransactionRevision;
 use App\Models\ReportTransaction;
 use App\Models\Refund;
+use App\Models\Review;
 use App\Traits\ServiceResponse;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
@@ -101,7 +104,7 @@ class TransactionService
      */
     public function getUsersTransactions(string $userId, ?string $status = null): array
     {
-        $query = Transaction::with(['completionImages', 'helper', 'requester', 'offer.post', 'payment', 'escrow'])
+        $query = Transaction::with(['completionImages', 'helper', 'requester', 'offer.post.images', 'offer.post.category', 'payment', 'escrow'])
             ->where(function ($q) use ($userId) {
                 $q->where('requester_id', $userId)
                   ->orWhere('helper_id', $userId);
@@ -117,12 +120,29 @@ class TransactionService
     }
 
     /**
+     * Get active/running transactions for a user.
+     */
+    public function getActiveTransactions(string $userId): array
+    {
+        $transactions = Transaction::with(['completionImages', 'helper', 'requester', 'offer.post.images', 'offer.post.category', 'payment', 'escrow'])
+            ->where(function ($q) use ($userId) {
+                $q->where('requester_id', $userId)
+                  ->orWhere('helper_id', $userId);
+            })
+            ->whereNotIn('status', ['completed', 'refunded', 'cancelled', 'failed'])
+            ->latest()
+            ->get();
+
+        return $this->successPayload($transactions, 'Transaksi aktif berhasil diambil.');
+    }
+
+    /**
      * Approve transaction and release escrow to the helper.
      */
     public function approveTransaction(string $transactionId, string $requesterId): array
     {
         try {
-            return DB::transaction(function () use ($transactionId, $requesterId) {
+            $transaction = DB::transaction(function () use ($transactionId, $requesterId) {
                 $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
 
                 if (!$transaction) {
@@ -171,8 +191,18 @@ class TransactionService
                     }
                 }
 
-                return $this->successPayload($transaction->load(['helper', 'requester', 'escrow']), 'Transaksi disetujui dan dana dilepas ke helper.');
+                return $transaction;
             });
+
+            // Trigger auto-payout directly to Helper's bank account (outside of DB transaction to avoid lock holding)
+            try {
+                $this->disburseToHelper($transaction->id);
+            } catch (\Exception $e) {
+                Log::error('Auto-payout failed for transaction ' . $transaction->id . ': ' . $e->getMessage());
+            }
+
+            return $this->successPayload($transaction->load(['helper', 'requester', 'escrow']), 'Transaksi disetujui dan dana dilepas ke helper.');
+
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
         } catch (Exception $e) {
@@ -499,4 +529,221 @@ class TransactionService
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
     }
+
+    /**
+     * Get all reviewed transactions for a user.
+     *
+     * @param string $userId
+     * @return array
+     */
+    public function getReviewedTransactions(string $userId): array
+    {
+        try {
+            $transactions = Transaction::with([
+                'completionImages',
+                'helper.photoProfile',
+                'requester.photoProfile',
+                'offer.post.category',
+                'offer.post.images',
+                'reviews.reviewer.photoProfile',
+                'reviews.reviewed.photoProfile',
+            ])
+            ->where(function ($q) use ($userId) {
+                $q->where('requester_id', $userId)
+                  ->orWhere('helper_id', $userId);
+            })
+            ->whereHas('reviews')
+            ->latest()
+            ->get();
+
+            return $this->successPayload($transactions, 'Riwayat transaksi yang sudah di-review berhasil diambil.');
+        } catch (Exception $e) {
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
+        }
+    }
+
+    /**
+     * Create a review for a transaction.
+     *
+     * @param string $transactionId
+     * @param string $reviewerId
+     * @param array $data
+     * @param array $uploadedImages
+     * @return array
+     */
+    public function createReview(string $transactionId, string $reviewerId, array $data, array $uploadedImages = []): array
+    {
+        $uploadedPaths = [];
+
+        try {
+            return DB::transaction(function () use ($transactionId, $reviewerId, $data, $uploadedImages, &$uploadedPaths) {
+                // Lock transaction
+                $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
+
+                if (!$transaction) {
+                    throw ValidationException::withMessages([
+                        'transaction' => ['Transaksi tidak ditemukan.']
+                    ]);
+                }
+
+                // Check transaction status (must be completed to be reviewed)
+                if ($transaction->status !== 'completed') {
+                    throw ValidationException::withMessages([
+                        'status' => ['Review hanya dapat diberikan jika transaksi sudah berstatus "completed". Status saat ini: ' . $transaction->status]
+                    ]);
+                }
+
+                // Check if user is requester or helper
+                $isRequester = $transaction->requester_id === $reviewerId;
+                $isHelper = $transaction->helper_id === $reviewerId;
+
+                if (!$isRequester && !$isHelper) {
+                    throw ValidationException::withMessages([
+                        'user' => ['Hanya requester atau helper yang bersangkutan yang dapat me-review transaksi ini.']
+                    ]);
+                }
+
+                // Check if user has already reviewed this transaction
+                $alreadyReviewed = Review::where('transaction_id', $transactionId)
+                    ->where('reviewer_id', $reviewerId)
+                    ->exists();
+
+                if ($alreadyReviewed) {
+                    throw ValidationException::withMessages([
+                        'review' => ['Anda sudah memberikan ulasan untuk transaksi ini.']
+                    ]);
+                }
+
+                // Determine who is reviewed
+                $reviewedId = $isRequester ? $transaction->helper_id : $transaction->requester_id;
+
+                // Create review
+                $review = Review::create([
+                    'transaction_id' => $transactionId,
+                    'reviewer_id' => $reviewerId,
+                    'reviewed_id' => $reviewedId,
+                    'rating' => $data['rating'],
+                    'comment' => $data['comment'] ?? null,
+                ]);
+
+                // Store uploaded review images
+                foreach ($uploadedImages as $imageFile) {
+                    $path = $imageFile->store('reviews', 'public');
+                    $uploadedPaths[] = $path;
+
+                    $review->images()->create([
+                        'url' => $path,
+                        'file_name' => $imageFile->getClientOriginalName(),
+                        'file_type' => $imageFile->getClientMimeType(),
+                        'type' => 'review',
+                    ]);
+                }
+
+                $review->load(['reviewer.photoProfile', 'reviewed.photoProfile', 'images']);
+
+                return $this->successPayload($review, 'Ulasan berhasil dikirim.', 201);
+            });
+        } catch (ValidationException $e) {
+            return $this->errorPayload($e->getMessage(), $e->errors(), 422);
+        } catch (Exception $e) {
+            // Delete uploaded files on failure
+            foreach ($uploadedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
+        }
+    }
+
+    /**
+     * Disburse funds directly to Helper's primary bank account using Midtrans Iris.
+     *
+     * @param string $transactionId
+     * @return array
+     */
+    public function disburseToHelper(string $transactionId): array
+    {
+        try {
+            $transaction = Transaction::with(['helper.primaryBankAccount', 'escrow'])->find($transactionId);
+            if (!$transaction) {
+                throw new Exception('Transaksi tidak ditemukan.');
+            }
+
+            $helper = $transaction->helper;
+            if (!$helper) {
+                throw new Exception('Helper tidak ditemukan untuk transaksi ini.');
+            }
+
+            // Get helper's primary bank account
+            $bankAccount = $helper->primaryBankAccount;
+            if (!$bankAccount) {
+                throw ValidationException::withMessages([
+                    'bank_account' => ['Helper belum mendaftarkan rekening bank utama untuk pencairan otomatis.']
+                ]);
+            }
+
+            $escrow = $transaction->escrow;
+            if (!$escrow) {
+                throw new Exception('Data escrow tidak ditemukan untuk transaksi ini.');
+            }
+
+            $netAmount = $escrow->net_amount;
+
+            $isProduction = config('midtrans.is_production', false);
+            $apiKey = config('midtrans.iris_api_key') ?? config('midtrans.server_key');
+            $baseUrl = $isProduction 
+                ? 'https://app.midtrans.com/iris/api/v1' 
+                : 'https://app.sandbox.midtrans.com/iris/api/v1';
+
+            $idempotencyKey = 'payout-' . $transaction->id;
+
+            $response = Http::withHeaders([
+                'X-Idempotency-Key' => $idempotencyKey,
+                'Accept' => 'application/json',
+                'Content-Type' => 'application/json',
+            ])
+            ->withBasicAuth($apiKey, '')
+            ->post($baseUrl . '/payouts', [
+                'payouts' => [
+                    [
+                        'beneficiary_name' => $bankAccount->account_name,
+                        'beneficiary_account' => $bankAccount->account_number,
+                        'beneficiary_bank' => $bankAccount->bank_code,
+                        'amount' => number_format($netAmount, 2, '.', ''),
+                        'notes' => 'Pencairan BANTUIN untuk transaksi ' . substr($transaction->id, 0, 8),
+                    ]
+                ]
+            ]);
+
+            if ($response->failed()) {
+                $errorData = $response->json();
+                $errorMessage = $errorData['error_message'] ?? 'Midtrans Iris API returned status code ' . $response->status();
+                throw new Exception('Gagal melakukan transfer ke bank Helper via Midtrans: ' . $errorMessage);
+            }
+
+            $resJson = $response->json();
+            $payoutInfo = $resJson['payouts'][0] ?? [];
+            $referenceNo = $payoutInfo['reference_no'] ?? 'N/A';
+            $payoutStatus = $payoutInfo['status'] ?? 'pending';
+
+            // Update escrow release notes with disbursement details
+            $escrow->update([
+                'release_notes' => trim($escrow->release_notes . "\nTransfer otomatis Midtrans Iris berhasil. Status: " . $payoutStatus . ", Ref: " . $referenceNo),
+            ]);
+
+            return $this->successPayload([
+                'transaction_id' => $transaction->id,
+                'reference_no' => $referenceNo,
+                'status' => $payoutStatus,
+                'amount' => $netAmount,
+                'bank' => $bankAccount->bank_name,
+                'account_number' => $bankAccount->account_number,
+            ], 'Dana berhasil ditransfer ke rekening bank Helper.');
+
+        } catch (ValidationException $e) {
+            return $this->errorPayload($e->getMessage(), $e->errors(), 422);
+        } catch (Exception $e) {
+            return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
+        }
+    }
 }
+

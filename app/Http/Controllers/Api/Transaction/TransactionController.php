@@ -34,6 +34,15 @@ class TransactionController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function activeTransactions(Request $request): JsonResponse
+    {
+        $result = $this->transactionService->getActiveTransactions(
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
     /**
      * Complete a transaction by the helper.
      *
@@ -153,4 +162,64 @@ class TransactionController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    /**
+     * Get transaction history that has been reviewed.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function reviewedHistory(Request $request): JsonResponse
+    {
+        $result = $this->transactionService->getReviewedTransactions(
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Submit a review for a transaction.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function review(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $uploadedImages = $request->file('images') ?? [];
+
+        $result = $this->transactionService->createReview(
+            $id,
+            auth('sanctum')->id(),
+            $data,
+            $uploadedImages
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Disburse/transfer funds to Helper's primary bank account.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function transfer(Request $request, string $id): JsonResponse
+    {
+        $result = $this->transactionService->disburseToHelper($id);
+
+        return response()->json($result, $result['code']);
+    }
 }
+
+
+
