@@ -104,7 +104,7 @@ class TransactionService
      */
     public function getUsersTransactions(string $userId, ?string $status = null): array
     {
-        $query = Transaction::with(['completionImages', 'helper', 'requester', 'offer.post.images', 'offer.post.category', 'payment', 'escrow'])
+        $query = Transaction::with(['completionImages', 'helper', 'requester', 'offer.post.images', 'offer.post.category', 'payment', 'escrow', 'reviews'])
             ->where(function ($q) use ($userId) {
                 $q->where('requester_id', $userId)
                   ->orWhere('helper_id', $userId);
@@ -280,9 +280,9 @@ class TransactionService
                     ]);
                 }
 
-                // Update transaction status back to on_progress for helper to re-work
+                // Update transaction status to pending_revision for helper to re-work
                 $transaction->update([
-                    'status' => 'on_progress',
+                    'status' => 'pending_revision',
                 ]);
 
                 return $this->successPayload($revision->load('images'), 'Permintaan revisi berhasil dikirim.');
@@ -358,7 +358,7 @@ class TransactionService
                         ]);
                     }
 
-                    $transaction->load(['completionImages', 'revisions']);
+                    $transaction->load(['completionImages', 'revisions', 'revisions.images']);
                     return $this->successPayload($transaction, 'Laporan revisi berhasil dikirim ke requester.');
                 } else {
                     // action === 'rejected'
@@ -391,6 +391,19 @@ class TransactionService
                         'status' => 'pending',
                     ]);
 
+                    // Store dispute evidence images
+                    foreach ($uploadedImages as $imageFile) {
+                        $path = $imageFile->store('transactions/disputes', 'public');
+                        $uploadedPaths[] = $path;
+
+                        $report->images()->create([
+                            'url' => $path,
+                            'file_name' => $imageFile->getClientOriginalName(),
+                            'file_type' => $imageFile->getClientMimeType(),
+                            'type' => 'dispute_evidence',
+                        ]);
+                    }
+
                     return $this->successPayload($report, 'Revisi ditolak. Transaksi dialihkan ke status sengketa (disputed) untuk dimediasi admin.');
                 }
             });
@@ -407,10 +420,12 @@ class TransactionService
     /**
      * Request a refund for a transaction by the requester.
      */
-    public function requestRefund(string $transactionId, string $requesterId, array $data): array
+    public function requestRefund(string $transactionId, string $requesterId, array $data, array $uploadedImages = []): array
     {
+        $uploadedPaths = [];
+
         try {
-            return DB::transaction(function () use ($transactionId, $requesterId, $data) {
+            return DB::transaction(function () use ($transactionId, $requesterId, $data, $uploadedImages, &$uploadedPaths) {
                 $transaction = Transaction::whereKey($transactionId)->lockForUpdate()->first();
 
                 if (!$transaction) {
@@ -454,11 +469,32 @@ class TransactionService
                     'gateway_refund_id' => 'REF-' . strtoupper(uniqid()),
                 ]);
 
+                // Store uploaded proof images
+                foreach ($uploadedImages as $imageFile) {
+                    $path = $imageFile->store('transactions/refunds', 'public');
+                    $uploadedPaths[] = $path;
+
+                    $transaction->images()->create([
+                        'url' => $path,
+                        'file_name' => $imageFile->getClientOriginalName(),
+                        'file_type' => $imageFile->getClientMimeType(),
+                        'type' => 'refund',
+                    ]);
+                }
+
+                // Update transaction status
+                $transaction->update([
+                    'status' => 'pending_refund',
+                ]);
+
                 return $this->successPayload($refund, 'Pengajuan refund berhasil dikirim. Menunggu persetujuan helper.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
         } catch (Exception $e) {
+            foreach ($uploadedPaths as $path) {
+                Storage::disk('public')->delete($path);
+            }
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
     }
@@ -571,14 +607,18 @@ class TransactionService
                 'requester.photoProfile',
                 'offer.post.category',
                 'offer.post.images',
-                'reviews.reviewer.photoProfile',
-                'reviews.reviewed.photoProfile',
+                'reviews' => function ($q) use ($userId) {
+                    $q->where('reviewed_id', $userId)
+                      ->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images']);
+                }
             ])
             ->where(function ($q) use ($userId) {
                 $q->where('requester_id', $userId)
                   ->orWhere('helper_id', $userId);
             })
-            ->whereHas('reviews')
+            ->whereHas('reviews', function ($q) use ($userId) {
+                $q->where('reviewed_id', $userId);
+            })
             ->latest()
             ->get();
 
@@ -921,7 +961,9 @@ class TransactionService
             'payment',
             'escrow',
             'revisions',
+            'revisions.images',
             'reviews',
+            'refunds',
         ])->find($id);
 
         if (!$transaction) {

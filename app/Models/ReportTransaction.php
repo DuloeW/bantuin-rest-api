@@ -33,4 +33,9 @@ class ReportTransaction extends Model
     {
         return $this->belongsTo(User::class, 'reported_id');
     }
+
+    public function images(): \Illuminate\Database\Eloquent\Relations\MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable');
+    }
 }

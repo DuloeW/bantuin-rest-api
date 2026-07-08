@@ -89,4 +89,102 @@ class RequestTransactionRevisionTest extends TestCase
         $response->assertStatus(422)
             ->assertJsonValidationErrors(['revision_notes']);
     }
+
+    public function test_respond_revision_accept_successfully(): void
+    {
+        $userId = 'helper-uuid-123';
+        $revisionId = 'revision-uuid-999';
+
+        $payload = [
+            'action' => 'fixed',
+            'completion_notes' => 'Pekerjaan selesai diperbaiki.',
+            'completion_images' => [
+                \Illuminate\Http\UploadedFile::fake()->image('proof.jpg')
+            ]
+        ];
+
+        $expectedResult = [
+            'success' => true,
+            'code' => 200,
+            'message' => 'Laporan revisi berhasil dikirim ke requester.',
+            'data' => []
+        ];
+
+        $mockUser = Mockery::mock(User::class)->makePartial();
+        $mockUser->shouldReceive('getAuthIdentifier')->andReturn($userId);
+        $mockUser->shouldReceive('getAuthIdentifierName')->andReturn('id');
+        $mockUser->shouldReceive('getKey')->andReturn($userId);
+        $this->actingAs($mockUser, 'sanctum');
+
+        $this->mock(TransactionService::class, function ($mock) use ($revisionId, $userId, $payload, $expectedResult) {
+            $mock->shouldReceive('respondToRevision')
+                ->once()
+                ->with(
+                    $revisionId,
+                    $userId,
+                    Mockery::on(function ($data) {
+                        return $data['action'] === 'fixed' && $data['completion_notes'] === 'Pekerjaan selesai diperbaiki.';
+                    }),
+                    Mockery::any()
+                )
+                ->andReturn($expectedResult);
+        });
+
+        $response = $this->postJson("/api/revisions/{$revisionId}/respond", $payload);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Laporan revisi berhasil dikirim ke requester.',
+            ]);
+    }
+
+    public function test_respond_revision_decline_successfully(): void
+    {
+        $userId = 'helper-uuid-123';
+        $revisionId = 'revision-uuid-999';
+
+        $payload = [
+            'action' => 'rejected',
+            'dispute_reason' => 'Permintaan revisi di luar kesepakatan.',
+            'dispute_images' => [
+                \Illuminate\Http\UploadedFile::fake()->image('evidence.jpg')
+            ]
+        ];
+
+        $expectedResult = [
+            'success' => true,
+            'code' => 200,
+            'message' => 'Revisi ditolak. Transaksi dialihkan ke status sengketa.',
+            'data' => []
+        ];
+
+        $mockUser = Mockery::mock(User::class)->makePartial();
+        $mockUser->shouldReceive('getAuthIdentifier')->andReturn($userId);
+        $mockUser->shouldReceive('getAuthIdentifierName')->andReturn('id');
+        $mockUser->shouldReceive('getKey')->andReturn($userId);
+        $this->actingAs($mockUser, 'sanctum');
+
+        $this->mock(TransactionService::class, function ($mock) use ($revisionId, $userId, $payload, $expectedResult) {
+            $mock->shouldReceive('respondToRevision')
+                ->once()
+                ->with(
+                    $revisionId,
+                    $userId,
+                    Mockery::on(function ($data) {
+                        return $data['action'] === 'rejected' && $data['dispute_reason'] === 'Permintaan revisi di luar kesepakatan.';
+                    }),
+                    Mockery::any()
+                )
+                ->andReturn($expectedResult);
+        });
+
+        $response = $this->postJson("/api/revisions/{$revisionId}/respond", $payload);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'message' => 'Revisi ditolak. Transaksi dialihkan ke status sengketa.',
+            ]);
+    }
 }

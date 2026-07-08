@@ -72,5 +72,15 @@ class Transaction extends Model
     {
         return $this->hasMany(Review::class, 'transaction_id');
     }
+
+    public function refunds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Refund::class);
+    }
+
+    public function refundImages(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('type', 'refund');
+    }
 }
 

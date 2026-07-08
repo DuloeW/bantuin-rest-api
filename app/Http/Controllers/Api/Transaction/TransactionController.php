@@ -117,9 +117,16 @@ class TransactionController extends Controller
             'completion_images' => 'required_if:action,fixed|nullable|array|min:1',
             'completion_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'dispute_reason' => 'required_if:action,rejected|nullable|string|max:2000',
+            'dispute_images' => 'required_if:action,rejected|nullable|array|min:1',
+            'dispute_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        $uploadedImages = $request->file('completion_images') ?? [];
+        $uploadedImages = [];
+        if ($data['action'] === 'fixed') {
+            $uploadedImages = $request->file('completion_images') ?? [];
+        } else if ($data['action'] === 'rejected') {
+            $uploadedImages = $request->file('dispute_images') ?? [];
+        }
 
         $result = $this->transactionService->respondToRevision(
             $revisionId,
@@ -138,12 +145,17 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'reason' => 'required|string|max:2000',
+            'refund_images' => 'sometimes|array',
+            'refund_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+
+        $uploadedImages = $request->file('refund_images') ?? [];
 
         $result = $this->transactionService->requestRefund(
             $id,
             auth('sanctum')->id(),
-            $data
+            $data,
+            $uploadedImages
         );
 
         return response()->json($result, $result['code']);
@@ -176,12 +188,11 @@ class TransactionController extends Controller
      */
     public function reviewedHistory(Request $request): JsonResponse
     {
-        $result = $this->transactionService->getReviewedTransactions(
-            auth('sanctum')->id()
-        );
+        $userId = $request->query('user_id') ?? auth('sanctum')->id();
+        $result = $this->transactionService->getReviewedTransactions($userId);
 
         return response()->json($result, $result['code']);
-}
+    }
 
     /**
      * Submit a review for a transaction.
@@ -235,7 +246,7 @@ class TransactionController extends Controller
     public function update(Request $request, string $id): JsonResponse
     {
         $data = $request->validate([
-            'status' => 'sometimes|string|in:pending,on_progress,pending_approval,completed,disputed,cancelled',
+            'status' => 'sometimes|string|in:pending,on_progress,pending_approval,pending_revision,completed,disputed,cancelled',
             'completion_notes' => 'sometimes|nullable|string|max:2000',
             'finished_at' => 'sometimes|nullable|date',
             'completion_images' => 'sometimes|array|min:1',
