@@ -2,6 +2,8 @@
 
 namespace App\Service\User;
 
+use App\Models\EscrowTransaction;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Traits\ServiceResponse;
 use Exception;
@@ -9,6 +11,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\ReportUser;
+use App\Models\Image;
 
 class UserService
 {
@@ -98,22 +102,22 @@ class UserService
     public function getActivityAnalytics(string $userId)
     {
         try {
-            $totalEarnings = (float) \App\Models\Transaction::where('helper_id', $userId)
+            $totalEarnings = (float) Transaction::where('helper_id', $userId)
                 ->where('status', 'completed')
                 ->sum('final_price');
 
-            $totalSpending = (float) \App\Models\Transaction::where('requester_id', $userId)
+            $totalSpending = (float) Transaction::where('requester_id', $userId)
                 ->where('status', 'completed')
                 ->sum('total_price');
 
-            $activeEscrowBalance = (float) \App\Models\EscrowTransaction::where('status', 'held')
+            $activeEscrowBalance = (float) EscrowTransaction::where('status', 'held')
                 ->whereHas('transaction', function ($q) use ($userId) {
                     $q->where('requester_id', $userId)
                       ->orWhere('helper_id', $userId);
                 })
                 ->sum('held_amount');
 
-            $completedServicesCount = \App\Models\Transaction::where('helper_id', $userId)
+            $completedServicesCount = Transaction::where('helper_id', $userId)
                 ->where('status', 'completed')
                 ->count();
 
@@ -122,7 +126,7 @@ class UserService
 
             $currentYear = date('Y');
 
-            $earningsByMonth = \App\Models\Transaction::selectRaw('MONTH(finished_at) as month, SUM(final_price) as total')
+            $earningsByMonth = Transaction::selectRaw('MONTH(finished_at) as month, SUM(final_price) as total')
                 ->where('helper_id', $userId)
                 ->where('status', 'completed')
                 ->whereYear('finished_at', $currentYear)
@@ -130,7 +134,7 @@ class UserService
                 ->pluck('total', 'month')
                 ->toArray();
 
-            $spendingByMonth = \App\Models\Transaction::selectRaw('MONTH(finished_at) as month, SUM(total_price) as total')
+            $spendingByMonth = Transaction::selectRaw('MONTH(finished_at) as month, SUM(total_price) as total')
                 ->where('requester_id', $userId)
                 ->where('status', 'completed')
                 ->whereYear('finished_at', $currentYear)
@@ -242,10 +246,6 @@ class UserService
         ], 'user posts retrieved successfully');
     }
 
-    // TODO fitur untuk menampilkan history user
-    public function getUsersHistory() {}
-
-    // TODO update skill belum
     public function updateUser(string $id, array $data, array $profileImages, array $ktpImages)
     {
         $uploadedPaths = [];
@@ -410,6 +410,47 @@ class UserService
             }
 
             Storage::disk('public')->delete($path);
+        }
+    }
+
+    public function reportUser(string $reportedId, string $reporterId, array $data, array $uploadedImages = [])
+    {
+        $reportedUser = User::find($reportedId);
+        if (!$reportedUser) {
+            return $this->errorPayload('user not found', [], 404);
+        }
+
+        $report = ReportUser::create([
+            'reported_id' => $reportedId,
+            'reporter_id' => $reporterId,
+            'reason_category' => $data['reason_category'],
+            'description' => $data['description'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        foreach ($uploadedImages as $imageFile) {
+            $path = $imageFile->store('evidences/users', 'public');
+            $report->images()->create([
+                'url' => $path,
+                'file_name' => $imageFile->getClientOriginalName(),
+                'file_type' => $imageFile->getClientMimeType(),
+            ]);
+        }
+
+        return $this->successPayload($report, 'user reported successfully', 201);
+    }
+
+    public function acceptTerms(string $userId)
+    {
+        try {
+            $user = User::findOrFail($userId);
+            $user->update([
+                'accepted_term_condition_at' => now(),
+            ]);
+
+            return $this->successPayload($user, 'Terms and conditions accepted successfully');
+        } catch (\Exception $e) {
+            return $this->errorPayload($e->getMessage(), [], 500);
         }
     }
 }

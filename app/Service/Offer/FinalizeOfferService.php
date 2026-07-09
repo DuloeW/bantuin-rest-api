@@ -72,7 +72,7 @@ class FinalizeOfferService
                 // Jika belum ada transaksi, ijinkan untuk diproses (lanjut ke pembuatan transaksi)
             } else {
                 throw ValidationException::withMessages([
-                    'offer' => ['Only pending or accepted offers without transactions can be finalized.'],
+                    'offer' => ['Different User Has Taken This Offer.'],
                 ]);
             }
         }

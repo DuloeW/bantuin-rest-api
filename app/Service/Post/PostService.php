@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Traits\ServiceResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\ReportPost;
+use App\Models\Image;
 
 class PostService
 {
@@ -315,41 +317,93 @@ class PostService
 
         // Filter by location (province, city, district, village)
         if (!empty($filters['province_id'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('requestDetail', function ($sq) use ($filters) {
-                    $sq->where('province_id', $filters['province_id']);
-                })->orWhereHas('offerDetail', function ($sq) use ($filters) {
-                    $sq->where('province_id', $filters['province_id']);
+            $provinceVal = $filters['province_id'];
+            $query->where(function ($q) use ($provinceVal) {
+                $q->whereHas('requestDetail', function ($sq) use ($provinceVal) {
+                    if (is_numeric($provinceVal)) {
+                        $sq->where('province_id', $provinceVal);
+                    } else {
+                        $sq->whereHas('province', function ($ssq) use ($provinceVal) {
+                            $ssq->where('name', 'like', "%{$provinceVal}%");
+                        });
+                    }
+                })->orWhereHas('offerDetail', function ($sq) use ($provinceVal) {
+                    if (is_numeric($provinceVal)) {
+                        $sq->where('province_id', $provinceVal);
+                    } else {
+                        $sq->whereHas('province', function ($ssq) use ($provinceVal) {
+                            $ssq->where('name', 'like', "%{$provinceVal}%");
+                        });
+                    }
                 });
             });
         }
 
         if (!empty($filters['city_id'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('requestDetail', function ($sq) use ($filters) {
-                    $sq->where('city_id', $filters['city_id']);
-                })->orWhereHas('offerDetail', function ($sq) use ($filters) {
-                    $sq->where('city_id', $filters['city_id']);
+            $cityVal = $filters['city_id'];
+            $query->where(function ($q) use ($cityVal) {
+                $q->whereHas('requestDetail', function ($sq) use ($cityVal) {
+                    if (is_numeric($cityVal)) {
+                        $sq->where('city_id', $cityVal);
+                    } else {
+                        $sq->whereHas('city', function ($ssq) use ($cityVal) {
+                            $ssq->where('name', 'like', "%{$cityVal}%");
+                        });
+                    }
+                })->orWhereHas('offerDetail', function ($sq) use ($cityVal) {
+                    if (is_numeric($cityVal)) {
+                        $sq->where('city_id', $cityVal);
+                    } else {
+                        $sq->whereHas('city', function ($ssq) use ($cityVal) {
+                            $ssq->where('name', 'like', "%{$cityVal}%");
+                        });
+                    }
                 });
             });
         }
 
         if (!empty($filters['district_id'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('requestDetail', function ($sq) use ($filters) {
-                    $sq->where('district_id', $filters['district_id']);
-                })->orWhereHas('offerDetail', function ($sq) use ($filters) {
-                    $sq->where('district_id', $filters['district_id']);
+            $districtVal = $filters['district_id'];
+            $query->where(function ($q) use ($districtVal) {
+                $q->whereHas('requestDetail', function ($sq) use ($districtVal) {
+                    if (is_numeric($districtVal)) {
+                        $sq->where('district_id', $districtVal);
+                    } else {
+                        $sq->whereHas('district', function ($ssq) use ($districtVal) {
+                            $ssq->where('name', 'like', "%{$districtVal}%");
+                        });
+                    }
+                })->orWhereHas('offerDetail', function ($sq) use ($districtVal) {
+                    if (is_numeric($districtVal)) {
+                        $sq->where('district_id', $districtVal);
+                    } else {
+                        $sq->whereHas('district', function ($ssq) use ($districtVal) {
+                            $ssq->where('name', 'like', "%{$districtVal}%");
+                        });
+                    }
                 });
             });
         }
 
         if (!empty($filters['village_id'])) {
-            $query->where(function ($q) use ($filters) {
-                $q->whereHas('requestDetail', function ($sq) use ($filters) {
-                    $sq->where('village_id', $filters['village_id']);
-                })->orWhereHas('offerDetail', function ($sq) use ($filters) {
-                    $sq->where('village_id', $filters['village_id']);
+            $villageVal = $filters['village_id'];
+            $query->where(function ($q) use ($villageVal) {
+                $q->whereHas('requestDetail', function ($sq) use ($villageVal) {
+                    if (is_numeric($villageVal)) {
+                        $sq->where('village_id', $villageVal);
+                    } else {
+                        $sq->whereHas('village', function ($ssq) use ($villageVal) {
+                            $ssq->where('name', 'like', "%{$villageVal}%");
+                        });
+                    }
+                })->orWhereHas('offerDetail', function ($sq) use ($villageVal) {
+                    if (is_numeric($villageVal)) {
+                        $sq->where('village_id', $villageVal);
+                    } else {
+                        $sq->whereHas('village', function ($ssq) use ($villageVal) {
+                            $ssq->where('name', 'like', "%{$villageVal}%");
+                        });
+                    }
                 });
             });
         }
@@ -382,7 +436,14 @@ class PostService
 
         // Filter by category
         if (!empty($filters['category_id'])) {
-            $query->where('category_id', $filters['category_id']);
+            $catVal = $filters['category_id'];
+            if (preg_match('/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i', $catVal)) {
+                $query->where('category_id', $catVal);
+            } else {
+                $query->whereHas('category', function ($sq) use ($catVal) {
+                    $sq->where('title', 'like', "%{$catVal}%");
+                });
+            }
         }
 
         $posts = $query->get();
@@ -433,6 +494,12 @@ class PostService
         ->orderBy('distance_meters', 'asc')
         ->get();
 
+        // Tambahkan field distance (dalam km) ke setiap post
+        $posts = $posts->map(function ($post) {
+            $post->distance = round($post->distance_meters / 1000, 2);
+            return $post;
+        });
+
         return $this->successPayload($posts, 'nearest posts retrieved successfully');
     }
 
@@ -477,5 +544,32 @@ class PostService
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
         }
+    }
+
+    public function reportPost(string $postId, string $reporterId, array $data, array $uploadedImages = [])
+    {
+        $post = Post::find($postId);
+        if (!$post) {
+            return $this->errorPayload('post not found', [], 404);
+        }
+
+        $report = ReportPost::create([
+            'post_id' => $postId,
+            'reporter_id' => $reporterId,
+            'reason_category' => $data['reason_category'],
+            'description' => $data['description'] ?? null,
+            'status' => 'pending',
+        ]);
+
+        foreach ($uploadedImages as $imageFile) {
+            $path = $imageFile->store('evidences/posts', 'public');
+            $report->images()->create([
+                'url' => $path,
+                'file_name' => $imageFile->getClientOriginalName(),
+                'file_type' => $imageFile->getClientMimeType(),
+            ]);
+        }
+
+        return $this->successPayload($report, 'post reported successfully', 201);
     }
 }

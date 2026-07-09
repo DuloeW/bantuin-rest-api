@@ -38,6 +38,7 @@ class AuthService
             'last_name' => $data['last_name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'accepted_term_condition_at' => now(),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;

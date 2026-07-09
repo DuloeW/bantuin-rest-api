@@ -8,6 +8,8 @@ use App\Models\ReportTransaction;
 use App\Models\Refund;
 use App\Models\Review;
 use App\Traits\ServiceResponse;
+use App\Enum\OfferingStatusEnum;
+use App\Enum\ActiveOffEnum;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -174,6 +176,23 @@ class TransactionService
                     'status' => 'completed',
                     'finished_at' => now(),
                 ]);
+
+                // Update associated offer to completed, and set post detail to active if post type is offer
+                $offer = $transaction->offer;
+                if ($offer) {
+                    $offer->update([
+                        'status' => OfferingStatusEnum::COMPLETED->value,
+                    ]);
+
+                    $post = $offer->post;
+                    if ($post && $post->type === 'offer') {
+                        if ($post->offerDetail) {
+                            $post->offerDetail->update([
+                                'status' => ActiveOffEnum::ACTIVE->value,
+                            ]);
+                        }
+                    }
+                }
 
                 // Update escrow
                 $escrow = $transaction->escrow;
@@ -848,6 +867,25 @@ class TransactionService
 
                 if (!empty($updateData)) {
                     $transaction->update($updateData);
+                }
+
+                // If status was updated to completed, update the offer status too
+                if (isset($updateData['status']) && $updateData['status'] === 'completed') {
+                    $offer = $transaction->offer;
+                    if ($offer) {
+                        $offer->update([
+                            'status' => OfferingStatusEnum::COMPLETED->value,
+                        ]);
+
+                        $post = $offer->post;
+                        if ($post && $post->type === 'offer') {
+                            if ($post->offerDetail) {
+                                $post->offerDetail->update([
+                                    'status' => ActiveOffEnum::ACTIVE->value,
+                                ]);
+                            }
+                        }
+                    }
                 }
 
                 // Replace completion images if new ones are uploaded

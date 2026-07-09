@@ -40,6 +40,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
     Route::get('/users/posts/{id}', [UserController::class, 'getUsersPosts']);
+    Route::post('/users/{id}/report', [UserController::class, 'reportUser']);
+    Route::patch('/users/accept-terms', [UserController::class, 'acceptTerms']);
 
     Route::get('/categories', [CategoryController::class, 'getAll']);
     Route::post('/categories', [CategoryController::class, 'create']);
@@ -57,6 +59,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
     Route::get('/posts/{id}', [PostController::class, 'getById']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
+    Route::post('/posts/{id}/report', [PostController::class, 'reportPost']);
 
     Route::get('/addresses/provinces', [AddressController::class, 'getProvinces']);
     Route::get('/addresses/provinces/{provinceId}/cities', [AddressController::class, 'getCitiesByProvince']);

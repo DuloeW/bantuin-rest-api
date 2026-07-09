@@ -155,4 +155,23 @@ class PostController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    public function reportPost(Request $request, string $id)
+    {
+        $request->validate([
+            'reason_category' => 'required|string',
+            'description' => 'nullable|string',
+            'report_images' => 'sometimes|array',
+            'report_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $data = $request->only(['reason_category', 'description']);
+        $reportImages = $request->file('report_images') ?? [];
+        
+        $userId = auth('sanctum')->user()->id;
+
+        $result = $this->postService->reportPost($id, $userId, $data, $reportImages);
+
+        return response()->json($result, $result['code']);
+    }
 }
