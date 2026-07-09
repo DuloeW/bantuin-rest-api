@@ -15,6 +15,11 @@ class Refund extends Model
 
     protected $guarded = [];
 
+    protected $casts = [
+        'amount'       => 'decimal:2',
+        'processed_at' => 'datetime',
+    ];
+
     public function transaction(): BelongsTo
     {
         return $this->belongsTo(Transaction::class);

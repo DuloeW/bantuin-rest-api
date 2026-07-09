@@ -3,11 +3,11 @@
 namespace App\Filament\Resources\Transactions\Tables;
 
 use App\Models\Transaction;
-use Filament\Tables\Actions\Action;
-use Filament\Tables\Actions\BulkActionGroup;
-use Filament\Tables\Actions\DeleteBulkAction;
-use Filament\Tables\Actions\EditAction;
-use Filament\Tables\Actions\ViewAction;
+use Filament\Actions\Action;
+use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -78,7 +78,7 @@ class TransactionsTable
                         'cancelled' => 'Cancelled',
                     ]),
             ])
-            ->actions([
+            ->recordActions([
                 ViewAction::make(),
                 EditAction::make(),
                 Action::make('markAsDisputed')
@@ -96,7 +96,7 @@ class TransactionsTable
                     ->action(fn (Transaction $record) => $record->update(['status' => 'cancelled']))
                     ->visible(fn (Transaction $record): bool => !in_array($record->status, ['completed', 'cancelled'])),
             ])
-            ->bulkActions([
+            ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
