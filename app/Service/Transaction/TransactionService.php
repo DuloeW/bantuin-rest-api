@@ -213,12 +213,8 @@ class TransactionService
                 return $transaction;
             });
 
-            // Trigger auto-payout directly to Helper's bank account (outside of DB transaction to avoid lock holding)
-            try {
-                $this->disburseToHelper($transaction->id);
-            } catch (\Exception $e) {
-                Log::error('Auto-payout failed for transaction ' . $transaction->id . ': ' . $e->getMessage());
-            }
+            // Auto-payout has been removed. Funds now only increase the wallet_balance,
+            // and the helper must manually request a withdrawal via the Withdrawal API.
 
             return $this->successPayload($transaction->load(['helper', 'requester', 'escrow']), 'Transaksi disetujui dan dana dilepas ke helper.');
 
