@@ -28,7 +28,10 @@ class PostService
     {   
         $posts = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             // 'users.ktpPhoto',   
             'requestDetail' => function ($query) {
@@ -70,7 +73,10 @@ class PostService
                 })
                 ->with([
                     'category',
-                    'users',
+                    'users' => function ($query) {
+                        $query->withCount(['helpedTransactions as completed_jobs_count'])
+                              ->withAvg('reviewReceived as avg_rating', 'rating');
+                    },
                     'users.photoProfile',
                     'images',
                     'offers' => function ($q) use ($userId) {
@@ -91,7 +97,10 @@ class PostService
                 })
                 ->with([
                     'category',
-                    'users',
+                    'users' => function ($query) {
+                        $query->withCount(['helpedTransactions as completed_jobs_count'])
+                              ->withAvg('reviewReceived as avg_rating', 'rating');
+                    },
                     'users.photoProfile',
                     'images',
                     'offers' => function ($q) use ($userId) {
@@ -121,7 +130,10 @@ class PostService
                 });
             })->with([
                 'category',
-                'users',
+                'users' => function ($query) {
+                    $query->withCount(['helpedTransactions as completed_jobs_count'])
+                          ->withAvg('reviewReceived as avg_rating', 'rating');
+                },
                 'users.photoProfile',
                 'images',
                 'offers' => function ($q) use ($userId) {
@@ -155,7 +167,10 @@ class PostService
     {
         $posts = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             // 'users.ktpPhoto', 
             'requestDetail' => function ($query) {
@@ -176,7 +191,10 @@ class PostService
     {
         $posts = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             // 'users.ktpPhoto', 
             'offerDetail' => function ($query) {
@@ -287,7 +305,10 @@ class PostService
     {
         $query = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             'requestDetail' => function ($q) {
                 $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
@@ -459,7 +480,10 @@ class PostService
 
         $posts = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             'requestDetail' => function ($q) {
                 $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
@@ -507,7 +531,10 @@ class PostService
     {
         $post = Post::with([
             'category',
-            'users',
+            'users' => function ($query) {
+                $query->withCount(['helpedTransactions as completed_jobs_count'])
+                      ->withAvg('reviewReceived as avg_rating', 'rating');
+            },
             'users.photoProfile',
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
@@ -524,11 +551,28 @@ class PostService
             'offerDetail.district:id,name',
             'offerDetail.village:id,name',
             'images',
+            'offers.transaction.reviews' => function ($query) {
+                $query->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images']);
+            },
         ])->find($id);
 
         if (!$post) {
             return $this->errorPayload('post not found', [], 404);
         }
+
+        // Flatten reviews from offers -> transaction -> reviews
+        $reviews = collect();
+        if ($post->offers) {
+            foreach ($post->offers as $offer) {
+                if ($offer->transaction && $offer->transaction->reviews) {
+                    foreach ($offer->transaction->reviews as $review) {
+                        $reviews->push($review);
+                    }
+                }
+            }
+        }
+        $post->setRelation('reviews', $reviews);
+        unset($post->offers); // Hide offers relation from response if not needed
 
         return $this->successPayload($post, 'post retrieved successfully');
     }
