@@ -2,16 +2,15 @@
 
 namespace App\Filament\Resources\Transactions\Tables;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Table;
+use App\Models\Transaction;
+use Filament\Tables\Actions\Action;
+use Filament\Tables\Actions\BulkActionGroup;
+use Filament\Tables\Actions\DeleteBulkAction;
+use Filament\Tables\Actions\EditAction;
+use Filament\Tables\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Actions\Action;
-use Filament\Actions\ViewAction;
-use App\Models\Transaction;
+use Filament\Tables\Table;
 
 class TransactionsTable
 {
@@ -24,7 +23,7 @@ class TransactionsTable
                     ->searchable()
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 TextColumn::make('offer.title')
                     ->label('Offer Title')
                     ->searchable(),
@@ -33,17 +32,17 @@ class TransactionsTable
                     ->label('Requester')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('helper.first_name')
                     ->label('Helper')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('total_price')
                     ->label('Total (Rp)')
                     ->money('idr')
                     ->sortable(),
-                
+
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -56,13 +55,13 @@ class TransactionsTable
                         default => 'gray',
                     })
                     ->searchable(),
-                
+
                 TextColumn::make('deadline')
                     ->label('Batas Waktu')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(),
-                
+
                 TextColumn::make('created_at')
                     ->label('Dibuat Pada')
                     ->dateTime('d M Y H:i')
@@ -79,7 +78,7 @@ class TransactionsTable
                         'cancelled' => 'Cancelled',
                     ]),
             ])
-            ->recordActions([
+            ->actions([
                 ViewAction::make(),
                 EditAction::make(),
                 Action::make('markAsDisputed')
@@ -97,7 +96,7 @@ class TransactionsTable
                     ->action(fn (Transaction $record) => $record->update(['status' => 'cancelled']))
                     ->visible(fn (Transaction $record): bool => !in_array($record->status, ['completed', 'cancelled'])),
             ])
-            ->toolbarActions([
+            ->bulkActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
                 ]),
