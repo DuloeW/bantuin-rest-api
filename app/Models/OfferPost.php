@@ -17,6 +17,7 @@ class OfferPost extends Model
     public $incrementing = false;
     protected $keyType = 'string';
     protected $appends = ['location_coordinate'];
+
     protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
 
     public function post()

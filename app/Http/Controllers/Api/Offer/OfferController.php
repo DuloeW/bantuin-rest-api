@@ -15,8 +15,11 @@ use Illuminate\Http\Request;
 class OfferController extends Controller
 {
     use ServiceResponse;
+
     protected OfferHelpService $offerHelpService;
+
     protected HireHelperService $hireHelperService;
+
     protected FinalizeOfferService $finalizeOfferService;
 
     public function __construct(
@@ -24,9 +27,9 @@ class OfferController extends Controller
         HireHelperService $hireHelperService,
         FinalizeOfferService $finalizeOfferService
     ) {
-        $this->offerHelpService      = $offerHelpService;
-        $this->hireHelperService     = $hireHelperService;
-        $this->finalizeOfferService  = $finalizeOfferService;
+        $this->offerHelpService = $offerHelpService;
+        $this->hireHelperService = $hireHelperService;
+        $this->finalizeOfferService = $finalizeOfferService;
     }
 
     public function applyForJob(Request $request): JsonResponse
@@ -37,7 +40,6 @@ class OfferController extends Controller
         ]);
 
         $post = Post::findOrFail($data['post_id']);
-
 
         $offer = $this->offerHelpService->applyForJob($post, $data, auth('sanctum')->id());
 
@@ -98,12 +100,12 @@ class OfferController extends Controller
     public function finalizeOffer(Request $request, string $offerId): JsonResponse
     {
         $data = $request->validate([
-            'deadline'      => 'required|date|after:now',
-            'work_notes'    => 'nullable|string|max:2000',
-            'agreed_price'  => 'nullable|numeric|min:0',
+            'deadline' => 'required|date|after:now',
+            'work_notes' => 'nullable|string|max:2000',
+            'agreed_price' => 'nullable|numeric|min:0',
         ]);
 
-        $offer  = Offer::findOrFail($offerId);
+        $offer = Offer::findOrFail($offerId);
         $result = $this->finalizeOfferService->finalize($offer, auth('sanctum')->id(), $data);
 
         return response()->json($result, $result['code']);

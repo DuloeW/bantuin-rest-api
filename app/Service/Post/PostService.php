@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Service\Post;
 
 use App\Enum\TypePostEnum;
@@ -15,6 +16,7 @@ class PostService
     use ServiceResponse;
 
     protected RequestPostService $requestPostService;
+
     protected OfferPostService $offerPostService;
 
     public function __construct(RequestPostService $requestPostService, OfferPostService $offerPostService)
@@ -23,9 +25,9 @@ class PostService
         $this->offerPostService = $offerPostService;
     }
 
-// TODO menambahkan logic untuk filter by category name
+    // TODO menambahkan logic untuk filter by category name
     public function getAllPosts()
-    {   
+    {
         $posts = Post::with([
             'category',
             'users' => function ($query) {
@@ -33,7 +35,7 @@ class PostService
                       ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
-            // 'users.ktpPhoto',   
+            // 'users.ktpPhoto',
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
             },
@@ -57,7 +59,7 @@ class PostService
     public function getTotalUserPosts()
     {
         $user = auth('sanctum')->user();
-        $postCount = Post::where('user_id', $user->id)->count(); 
+        $postCount = Post::where('user_id', $user->id)->count();
 
         return $this->successPayload(['count' => $postCount], 'total user posts retrieved successfully');
     }
@@ -172,7 +174,7 @@ class PostService
                       ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
-            // 'users.ktpPhoto', 
+            // 'users.ktpPhoto',
             'requestDetail' => function ($query) {
                 $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
             },
@@ -196,7 +198,7 @@ class PostService
                       ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
-            // 'users.ktpPhoto', 
+            // 'users.ktpPhoto',
             'offerDetail' => function ($query) {
                 $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
             },
@@ -232,7 +234,7 @@ class PostService
                 ->where('title', $data['title'])
                 ->exists();
 
-            if($userHasSamePost) {
+            if ($userHasSamePost) {
                 return $this->errorPayload('post title already exists', null, 422);
             }
 
@@ -248,6 +250,7 @@ class PostService
             $this->uploadImages($uploadedImages, $post);
 
             $post = $this->requestPostService->createRequestPostDetails($post, $data);
+
             return $this->successPayload($post, 'request post created successfully', 201);
         });
     }
@@ -273,7 +276,7 @@ class PostService
                 ->where('title', $data['title'])
                 ->exists();
 
-            if($userHasSamePost) {
+            if ($userHasSamePost) {
                 return $this->errorPayload('post title already exists', null, 422);
             }
 
@@ -289,6 +292,7 @@ class PostService
             $this->uploadImages($uploadedImages, $post);
 
             $post = $this->offerPostService->createOfferPostDetails($post, $data);
+
             return $this->successPayload($post, 'offer post created successfully', 201);
         });
     }
@@ -584,7 +588,7 @@ class PostService
 
             $post->images()->create([
                 'url' => $path,
-                'file_name' => $imageFile->getClientOriginalName(), 
+                'file_name' => $imageFile->getClientOriginalName(),
                 'file_type' => $imageFile->getClientMimeType(),
             ]);
         }

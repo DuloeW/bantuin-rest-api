@@ -5,7 +5,7 @@ namespace App\Filament\Resources\Transactions;
 use App\Filament\Resources\Transactions\Pages\CreateTransactions;
 use App\Filament\Resources\Transactions\Pages\EditTransactions;
 use App\Filament\Resources\Transactions\Pages\ListTransactions;
-use App\Filament\Resources\Transactions\Schemas\TransactionsForm;
+use App\Filament\Resources\Transactions\Schemas\TransactionForm;
 use App\Filament\Resources\Transactions\Tables\TransactionsTable;
 use App\Models\Transaction;
 use BackedEnum;
@@ -18,13 +18,37 @@ class TransactionsResource extends Resource
 {
     protected static ?string $model = Transaction::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
+    public static function getNavigationLabel(): string
+    {
+        return 'Audit Transaksi';
+    }
 
-    protected static ?string $recordTitleAttribute = 'Transaction';
+    public static function getNavigationGroup(): ?string
+    {
+        return 'Audit & Report';
+    }
+
+    public static function getModelLabel(): string
+    {
+        return 'Transaksi';
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return 'Audit Transaksi';
+    }
+    
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    protected static ?string $recordTitleAttribute = 'id';
 
     public static function form(Schema $schema): Schema
     {
-        return TransactionsForm::configure($schema);
+        return TransactionForm::configure($schema);
     }
 
     public static function table(Table $table): Table
@@ -43,7 +67,6 @@ class TransactionsResource extends Resource
     {
         return [
             'index' => ListTransactions::route('/'),
-            'create' => CreateTransactions::route('/create'),
             'edit' => EditTransactions::route('/{record}/edit'),
         ];
     }

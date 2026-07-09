@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Skill\SkillController;
 use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\UserSkillController;
+use App\Http\Controllers\Api\Withdrawal\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -107,4 +108,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'requestRefund']);
     Route::post('/refunds/{refundId}/respond', [TransactionController::class, 'respondRefund']);
+
+    // Withdrawals (Penarikan Dana Helper)
+    Route::get('/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('/withdrawals', [WithdrawalController::class, 'store']);
 });

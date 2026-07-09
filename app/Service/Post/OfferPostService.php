@@ -10,8 +10,8 @@ use Laravolt\Indonesia\IndonesiaService;
 
 class OfferPostService
 {
-
     use ServiceResponse;
+
     protected IndonesiaService $indonesiaService;
 
     public function __construct(IndonesiaService $indonesiaService)
@@ -40,7 +40,7 @@ class OfferPostService
         $startTime = $data['time_start'] ?? null;
         $endTime = $data['time_end'] ?? null;
 
-        $workingHours = $startTime && $endTime ? $startTime . ' - ' . $endTime : null;
+        $workingHours = $startTime && $endTime ? $startTime.' - '.$endTime : null;
 
         $newPost->offerDetail()->create([
             'base_price' => $data['base_price'],
