@@ -4,13 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str; 
 
 #[Guarded([])]
 class Category extends Model
 {
-    use HasUuids;
+    use HasFactory, HasUuids;
 
    
     protected static function booted()

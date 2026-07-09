@@ -28,6 +28,15 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Midtrans Iris API Key (Payouts)
+    |--------------------------------------------------------------------------
+    | Digunakan untuk melakukan pencairan otomatis ke rekening bank Helper.
+    |
+    */
+    'iris_api_key' => env('MIDTRANS_IRIS_API_KEY'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Auto Release (Hari)
     |--------------------------------------------------------------------------
     | Jika requester tidak merespons dalam X hari setelah helper submit,
@@ -36,3 +45,4 @@ return [
     */
     'auto_release_days' => env('ESCROW_AUTO_RELEASE_DAYS', 3),
 ];
+

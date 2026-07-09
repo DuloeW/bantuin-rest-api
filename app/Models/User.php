@@ -50,6 +50,20 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Post::class);
     }
 
+    public function completedRequestPosts()
+    {
+        return $this->posts()
+            ->where('type', 'request')
+            ->whereHas('offers.transaction', function ($query) {
+                $query->where('status', 'completed');
+            });
+    }
+
+    public function helpedTransactions()
+    {
+        return $this->hasMany(Transaction::class, 'helper_id')->where('status', 'completed');
+    }
+
     public function skills()
     {
         return $this->belongsToMany(Skill::class, 'skill_users', 'user_id', 'skill_id');
@@ -83,6 +97,11 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function reviewReceived()
     {
         return $this->hasMany(Review::class, 'reviewed_id');
+    }
+
+    public function reviewGiven()
+    {
+        return $this->hasMany(Review::class, 'reviewer_id');
     }
 
     public function photoProfile()

@@ -9,11 +9,13 @@ use Illuminate\Validation\Rule;
 //TODO menentukan flow template response
 class UserController extends Controller
 {
-    protected  UserService $userService;
+    protected UserService $userService;
+    protected \App\Service\Post\PostService $postService;
 
-    public function __construct(UserService $userService)
+    public function __construct(UserService $userService, \App\Service\Post\PostService $postService)
     {
         $this->userService = $userService;
+        $this->postService = $postService;
     }
 
     public function getAll()
@@ -39,6 +41,24 @@ class UserController extends Controller
     public function getByLastName(string $name)
     {
         $result = $this->userService->getUserByLastName($name);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getActivityAnalytics(Request $request)
+    {
+        $userId = $request->user()->id;
+        $result = $this->userService->getActivityAnalytics($userId);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getMyJobs(Request $request)
+    {
+        $userId = $request->user()->id;
+        $type = $request->query('type');
+
+        $result = $this->postService->getMyJobs($userId, $type);
 
         return response()->json($result, $result['code']);
     }
@@ -72,8 +92,6 @@ class UserController extends Controller
             'city_id' => 'sometimes|required|numeric',
             'village_id' => 'sometimes|required|numeric',   
             'neighborhood_unit' => 'sometimes|required|string|max:255',
-            'skills' => 'sometimes|required|array',
-            'skills.*' => 'sometimes|required|string|exists:skills,id',
         ]);
 
         if ($request->hasFile('photo_profile')) {
@@ -92,6 +110,69 @@ class UserController extends Controller
     public function getUsersPosts(Request $request, string $id)
     {
         $result = $this->userService->getUsersPosts($request, $id);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function updateWalletBalance(Request $request)
+    {
+        $request->validate([
+            'amount' => 'sometimes|numeric',
+            'wallet_balance' => 'sometimes|numeric|min:0',
+        ]);
+
+        $userId = $request->user()->id;
+        $amount = $request->input('amount');
+        $walletBalance = $request->input('wallet_balance');
+
+        if ($amount === null && $walletBalance === null) {
+            return response()->json([
+                'code' => 400,
+                'message' => 'Harap masukkan amount atau wallet_balance.',
+                'data' => null
+            ], 400);
+        }
+
+        $result = $this->userService->updateWalletBalance($userId, $amount, $walletBalance);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => 'required|current_password',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $result = $this->userService->changePassword($request->user()->id, $data['new_password']);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function reportUser(Request $request, string $id)
+    {
+        $request->validate([
+            'reason_category' => 'required|string',
+            'description' => 'nullable|string',
+            'report_images' => 'sometimes|array',
+            'report_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $data = $request->only(['reason_category', 'description']);
+        $reportImages = $request->file('report_images') ?? [];
+
+        $userId = auth('sanctum')->user()->id;
+
+        $result = $this->userService->reportUser($id, $userId, $data, $reportImages);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function acceptTerms(Request $request)
+    {
+        $userId = $request->user()->id;
+        $result = $this->userService->acceptTerms($userId);
 
         return response()->json($result, $result['code']);
     }

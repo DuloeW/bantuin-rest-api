@@ -12,6 +12,9 @@ use Laravolt\Indonesia\Models\Village;
 #[Guarded([])]
 class RequestPost extends Model
 {
+    protected $primaryKey = 'post_id';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $appends = ['location_coordinate'];
 
     protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];

@@ -63,6 +63,8 @@ class TransactionForm
                         ->options([
                             'pending' => 'Pending',
                             'on_progress' => 'On Progress',
+                            'pending_approval' => 'Pending Approval (Menunggu Persetujuan)',
+                            'pending_revision' => 'Pending Revision (Menunggu Revisi)',
                             'completed' => 'Completed',
                             'disputed' => 'Disputed (Bermasalah)',
                             'cancelled' => 'Cancelled',
