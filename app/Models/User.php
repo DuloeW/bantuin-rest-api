@@ -3,11 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Models\Contracts\HasName;
 use Filament\Panel;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -32,7 +30,7 @@ use Laravolt\Indonesia\Models\Village;
 ])]
 class User extends Authenticatable implements FilamentUser, HasName
 {
-    use HasFactory, Notifiable, HasApiTokens, HasUuids;
+    use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
     /**
      * Get the attributes that should be cast.
@@ -52,14 +50,38 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Post::class);
     }
 
+    public function completedRequestPosts()
+    {
+        return $this->posts()
+            ->where('type', 'request')
+            ->whereHas('offers.transaction', function ($query) {
+                $query->where('status', 'completed');
+            });
+    }
+
+    public function helpedTransactions()
+    {
+        return $this->hasMany(Transaction::class, 'helper_id')->where('status', 'completed');
+    }
+
     public function skills()
     {
-        return $this->belongsToMany(Skill::class);
+        return $this->belongsToMany(Skill::class, 'skill_users', 'user_id', 'skill_id');
     }
 
     public function offers()
     {
         return $this->hasMany(Offer::class);
+    }
+
+    public function bankAccounts()
+    {
+        return $this->hasMany(BankAccount::class);
+    }
+
+    public function primaryBankAccount()
+    {
+        return $this->hasOne(BankAccount::class)->where('is_primary', true);
     }
 
     public function transactionsAsRequester()
@@ -77,14 +99,23 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Review::class, 'reviewed_id');
     }
 
+    public function reviewGiven()
+    {
+        return $this->hasMany(Review::class, 'reviewer_id');
+    }
+
     public function photoProfile()
     {
-        return $this->morphOne(Image::class, 'imageable');
+        return $this->morphOne(Image::class, 'imageable')
+            ->where('type', 'profile')
+            ->latestOfMany();
     }
 
     public function ktpPhoto()
     {
-        return $this->morphOne(Image::class, 'imageable');
+        return $this->morphOne(Image::class, 'imageable')
+            ->where('type', 'ktp')
+            ->latestOfMany();
     }
 
     public function province()

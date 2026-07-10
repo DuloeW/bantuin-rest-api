@@ -13,7 +13,11 @@ use Laravolt\Indonesia\Models\Village;
 class OfferPost extends Model
 {
     protected $table = 'service_posts';
+    protected $primaryKey = 'post_id';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $appends = ['location_coordinate'];
+
     protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
 
     public function post()
@@ -49,8 +53,8 @@ class OfferPost extends Model
         if (($lat === null || $lon === null) && isset($this->attributes['location'])) {
             $loc = $this->attributes['location'];
             if (preg_match('/POINT\(([-0-9.]+) ([-0-9.]+)\)/', $loc, $m)) {
-                $lon = $m[1];
-                $lat = $m[2];
+                $lat = $m[1];
+                $lon = $m[2];
             }
         }
 

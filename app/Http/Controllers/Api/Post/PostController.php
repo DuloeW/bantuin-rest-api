@@ -117,4 +117,61 @@ class PostController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function search(Request $request)
+    {
+        $filters = $request->only([
+            'query',
+            'province_id',
+            'city_id',
+            'district_id',
+            'village_id',
+            'min_price',
+            'max_price',
+            'type',
+            'category_id',
+        ]);
+
+        $result = $this->postService->searchPost($filters);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function nearMe(Request $request)
+    {
+        $request->validate([
+            'latitude' => 'required|numeric|between:-90,90',
+            'longitude' => 'required|numeric|between:-180,180',
+            'radius' => 'sometimes|numeric|min:0.1',
+        ]);
+
+        $result = $this->postService->getNearMePosts($request->only(['latitude', 'longitude', 'radius']));
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getById(string $id)
+    {
+        $result = $this->postService->getPostById($id);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function reportPost(Request $request, string $id)
+    {
+        $request->validate([
+            'reason_category' => 'required|string',
+            'description' => 'nullable|string',
+            'report_images' => 'sometimes|array',
+            'report_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $data = $request->only(['reason_category', 'description']);
+        $reportImages = $request->file('report_images') ?? [];
+        
+        $userId = auth('sanctum')->user()->id;
+
+        $result = $this->postService->reportPost($id, $userId, $data, $reportImages);
+
+        return response()->json($result, $result['code']);
+    }
 }

@@ -27,7 +27,7 @@ class AuthService
         return $this->authSuccessPayload([
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'expires_in' => $expiredInMinutes / 60,
+            'expires_in' => $expiredInMinutes * 60, // dalam detik (standar OAuth2)
         ], 'login successful');
     }
 
@@ -38,6 +38,7 @@ class AuthService
             'last_name' => $data['last_name'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
+            'accepted_term_condition_at' => now(),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -45,8 +46,15 @@ class AuthService
         return $this->authSuccessPayload([
             'access_token' => $token,
             'token_type' => 'Bearer',
-            'expires_in' => config('sanctum.expiration') * 60,
+            'expires_in' => config('sanctum.expiration') * 60, // dalam detik (standar OAuth2)
             'user' => $user,
         ], 'registration successful', 201);
+    }
+
+    public function logout(Request  $request)
+    {
+        $request->user()->currentAccessToken()->delete();
+        
+        return $this->successPayload([], 'logout successful');
     }
 }

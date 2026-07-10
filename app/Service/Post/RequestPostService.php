@@ -23,14 +23,14 @@ class RequestPostService
             'district_id' => $data['district_id'],
             'village_id' => $data['village_id'],
             'address_details' => $data['address_details'],
-            'location' => DB::raw("ST_GeomFromText('POINT($longitude $latitude)', 4326)"),
+            'location' => DB::raw("ST_GeomFromText('POINT($latitude $longitude)', 4326)"),
             'published_until' => $data['published_until'],
             'status' => OpenCloseEnum::OPEN->value,
         ]);
 
         return $newPost->load([
             'requestDetail' => function ($query) {
-                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, address_details, status, ST_X(location) as longitude, ST_Y(location) as latitude,published_until, created_at');
+                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, province_id, city_id, district_id, village_id, address_details, status, ST_X(location) as latitude, ST_Y(location) as longitude,published_until, created_at');
             },
             'requestDetail.province',
             'requestDetail.city',

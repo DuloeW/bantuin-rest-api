@@ -12,7 +12,11 @@ use Laravolt\Indonesia\Models\Village;
 #[Guarded([])]
 class RequestPost extends Model
 {
+    protected $primaryKey = 'post_id';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $appends = ['location_coordinate'];
+
     protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
 
     protected $casts = [
@@ -52,11 +56,11 @@ class RequestPost extends Model
         $lon = $this->attributes['longitude'] ?? null;
 
         if (($lat === null || $lon === null) && isset($this->attributes['location'])) {
-            // parse POINT(lon lat)
+            // parse POINT(lat lon)
             $loc = $this->attributes['location'];
             if (preg_match('/POINT\(([-0-9.]+) ([-0-9.]+)\)/', $loc, $m)) {
-                $lon = $m[1];
-                $lat = $m[2];
+                $lat = $m[1];
+                $lon = $m[2];
             }
         }
 

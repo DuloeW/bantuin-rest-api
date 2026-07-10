@@ -2,43 +2,60 @@
 
 namespace App\Traits;
 
+use Illuminate\Http\JsonResponse;
+
 trait ServiceResponse
 {
-    protected function successPayload($data = [], string $message = 'success', int $code = 200): array
-    {
-        return $this->payload(true, $code, $message, $data);
-    }
-
-    protected function errorPayload(string $message = 'error', $data = [], int $code = 400): array
-    {
-        return $this->payload(false, $code, $message, $data);
-    }
-
-    protected function authSuccessPayload($data = [], string $message = 'success', int $code = 200): array
-    {
-        return $this->payloadAuth(true, $code, $message, $data);
-    }
-
-    protected function payload(bool $success, int $code, string $message, $data = []): array
+    /**
+     * Return a success payload
+     *
+     * @param mixed $data
+     * @param string $message
+     * @param int $code
+     * @return array
+     */
+    protected function successPayload($data, string $message = 'Success', int $code = 200): array
     {
         return [
-            'success' => $success,
-            'code' => $code,
+            'status' => 'success',
             'message' => $message,
             'data' => $data,
+            'code' => $code,
         ];
     }
 
-    protected function payloadAuth(bool $success, int $code, string $message, $data = []): array
+    /**
+     * Return an error payload
+     *
+     * @param string $message
+     * @param mixed $errors
+     * @param int $code
+     * @return array
+     */
+    protected function errorPayload(string $message, $errors = [], int $code = 400): array
     {
         return [
-            'success' => $success,
+            'status' => 'error',
+            'message' => $message,
+            'errors' => $errors,
+            'code' => $code,
+        ];
+    }
+
+    /**
+     * Return an auth success payload (standard OAuth2 root fields)
+     *
+     * @param array $data
+     * @param string $message
+     * @param int $code
+     * @return array
+     */
+    protected function authSuccessPayload(array $data, string $message = 'Success', int $code = 200): array
+    {
+        return array_merge([
+            'success' => true,
             'code' => $code,
             'message' => $message,
-            'access_token' => $data['access_token'] ?? null,
-            'token_type' => $data['token_type'] ?? null,
-            'expires_in' => $data['expires_in'] ?? null,
-            'user' => $data['user'] ?? null,
-        ];
+        ], $data);
     }
 }

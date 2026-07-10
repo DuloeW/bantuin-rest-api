@@ -2,9 +2,8 @@
 
 namespace App\Filament\Resources\Transactions\Schemas;
 
-use Filament\Forms\Form;
-
-use Filament\Forms\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
@@ -12,9 +11,9 @@ use Filament\Forms\Components\DateTimePicker;
 
 class TransactionForm
 {
-    public static function configure(Form $form): Form
+    public static function configure(Schema $schema): Schema
     {
-        return $form->schema([
+        return $schema->components([
             Section::make('Detail Pengguna & Penawaran')
                 ->columns(3)
                 ->schema([
@@ -64,6 +63,8 @@ class TransactionForm
                         ->options([
                             'pending' => 'Pending',
                             'on_progress' => 'On Progress',
+                            'pending_approval' => 'Pending Approval (Menunggu Persetujuan)',
+                            'pending_revision' => 'Pending Revision (Menunggu Revisi)',
                             'completed' => 'Completed',
                             'disputed' => 'Disputed (Bermasalah)',
                             'cancelled' => 'Cancelled',
