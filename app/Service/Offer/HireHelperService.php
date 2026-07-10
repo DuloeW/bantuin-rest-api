@@ -34,6 +34,8 @@ class HireHelperService
 
         $hasBooked = $post->offers()
             ->where('requester_id', $requesterId)
+            ->where('status', '!=', 'completed')
+            ->where('status', '!=', 'rejected')
             ->exists();
 
         if ($hasBooked) {

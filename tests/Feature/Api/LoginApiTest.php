@@ -22,18 +22,17 @@ class LoginApiTest extends TestCase
             'password' => 'secret123',
         ];
 
-        $this->mock(AuthService::class, function ($mock) use ($credentials) {
+        $this->mock(AuthService::class, function ($mock) {
             $mock->shouldReceive('login')
                 ->once()
-                ->with($credentials)
+                ->with(Mockery::type(\Illuminate\Http\Request::class))
                 ->andReturn([
                     'success' => true,
                     'code' => 200,
                     'message' => 'login successful',
-                    'data' => [
-                        'access_token' => 'token_abc',
-                        'token_type' => 'Bearer',
-                    ],
+                    'access_token' => 'token_abc',
+                    'token_type' => 'Bearer',
+                    'expires_in' => 3600,
                 ]);
         });
 
@@ -41,12 +40,11 @@ class LoginApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJson([
-                'status' => true,
+                'success' => true,
                 'message' => 'login successful',
-                'data' => [
-                    'access_token' => 'token_abc',
-                    'token_type' => 'Bearer',
-                ],
+                'access_token' => 'token_abc',
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
             ]);
     }
 
@@ -57,15 +55,14 @@ class LoginApiTest extends TestCase
             'password' => 'wrong-password',
         ];
 
-        $this->mock(AuthService::class, function ($mock) use ($credentials) {
+        $this->mock(AuthService::class, function ($mock) {
             $mock->shouldReceive('login')
                 ->once()
-                ->with($credentials)
+                ->with(Mockery::type(\Illuminate\Http\Request::class))
                 ->andReturn([
                     'success' => false,
                     'code' => 400,
                     'message' => 'email or password is incorrect',
-                    'data' => [],
                 ]);
         });
 
@@ -73,9 +70,8 @@ class LoginApiTest extends TestCase
 
         $response->assertStatus(400)
             ->assertJson([
-                'status' => false,
+                'success' => false,
                 'message' => 'email or password is incorrect',
-                'data' => [],
             ]);
     }
 

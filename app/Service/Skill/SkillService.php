@@ -30,7 +30,7 @@ class SkillService
 
     public function getSkillByName(string $name)
     {
-        $skill = Skill::where('name', $name)->first();
+        $skill = Skill::where('title', $name)->first();
 
         if (!$skill) {
             return $this->errorPayload('skill not found', [], 404);
@@ -41,7 +41,13 @@ class SkillService
 
     public function searchSkillsByName(string $name)
     {
-        $skills = Skill::where('name', 'like', '%' . $name . '%')->get();
+        $query = Skill::query();
+
+        if ($name !== null) {
+            $query->where('title', 'like', '%' . $name . '%');
+        }
+
+        $skills = $query->get();
 
         if ($skills->isEmpty()) {
             return $this->errorPayload('no skills found', [], 404);

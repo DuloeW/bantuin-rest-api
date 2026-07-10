@@ -61,10 +61,9 @@ class RegisterApiTest extends TestCase
                     'success' => true,
                     'code' => 201,
                     'message' => 'registration successful',
-                    'data' => [
-                        'access_token' => 'token_register_abc',
-                        'token_type' => 'Bearer',
-                    ],
+                    'access_token' => 'token_register_abc',
+                    'token_type' => 'Bearer',
+                    'expires_in' => 3600,
                 ]);
         });
 
@@ -72,12 +71,11 @@ class RegisterApiTest extends TestCase
 
         $response->assertStatus(201)
             ->assertJson([
-                'status' => true,
+                'success' => true,
                 'message' => 'registration successful',
-                'data' => [
-                    'access_token' => 'token_register_abc',
-                    'token_type' => 'Bearer',
-                ],
+                'access_token' => 'token_register_abc',
+                'token_type' => 'Bearer',
+                'expires_in' => 3600,
             ]);
     }
 
@@ -102,7 +100,6 @@ class RegisterApiTest extends TestCase
                     'success' => false,
                     'code' => 400,
                     'message' => 'registration failed',
-                    'data' => [],
                 ]);
         });
 
@@ -110,9 +107,8 @@ class RegisterApiTest extends TestCase
 
         $response->assertStatus(400)
             ->assertJson([
-                'status' => false,
+                'success' => false,
                 'message' => 'registration failed',
-                'data' => [],
             ]);
     }
 

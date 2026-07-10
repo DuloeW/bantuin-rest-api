@@ -34,6 +34,15 @@ class TransactionController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function activeTransactions(Request $request): JsonResponse
+    {
+        $result = $this->transactionService->getActiveTransactions(
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
     /**
      * Complete a transaction by the helper.
      *
@@ -81,12 +90,17 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'revision_notes' => 'required|string|max:2000',
+            'revision_images' => 'sometimes|array|max:5',
+            'revision_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+
+        $uploadedImages = $request->file('revision_images') ?? [];
 
         $result = $this->transactionService->requestRevision(
             $id,
             auth('sanctum')->id(),
-            $data
+            $data,
+            $uploadedImages
         );
 
         return response()->json($result, $result['code']);
@@ -103,9 +117,16 @@ class TransactionController extends Controller
             'completion_images' => 'required_if:action,fixed|nullable|array|min:1',
             'completion_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'dispute_reason' => 'required_if:action,rejected|nullable|string|max:2000',
+            'dispute_images' => 'required_if:action,rejected|nullable|array|min:1',
+            'dispute_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 
-        $uploadedImages = $request->file('completion_images') ?? [];
+        $uploadedImages = [];
+        if ($data['action'] === 'fixed') {
+            $uploadedImages = $request->file('completion_images') ?? [];
+        } else if ($data['action'] === 'rejected') {
+            $uploadedImages = $request->file('dispute_images') ?? [];
+        }
 
         $result = $this->transactionService->respondToRevision(
             $revisionId,
@@ -124,12 +145,17 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'reason' => 'required|string|max:2000',
+            'refund_images' => 'sometimes|array',
+            'refund_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
         ]);
+
+        $uploadedImages = $request->file('refund_images') ?? [];
 
         $result = $this->transactionService->requestRefund(
             $id,
             auth('sanctum')->id(),
-            $data
+            $data,
+            $uploadedImages
         );
 
         return response()->json($result, $result['code']);
@@ -153,4 +179,117 @@ class TransactionController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    /**
+     * Get transaction history that has been reviewed.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function reviewedHistory(Request $request): JsonResponse
+    {
+        $userId = $request->query('user_id') ?? auth('sanctum')->id();
+        $result = $this->transactionService->getReviewedTransactions($userId);
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Submit a review for a transaction.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function review(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+            'images' => 'nullable|array',
+            'images.*' => 'image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $uploadedImages = $request->file('images') ?? [];
+
+        $result = $this->transactionService->createReview(
+            $id,
+            auth('sanctum')->id(),
+            $data,
+            $uploadedImages
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Disburse/transfer funds to Helper's primary bank account.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function transfer(Request $request, string $id): JsonResponse
+    {
+        $result = $this->transactionService->disburseToHelper($id);
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Update a transaction's status, completion notes, finished_at, and completion images.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function update(Request $request, string $id): JsonResponse
+    {
+        $data = $request->validate([
+            'status' => 'sometimes|string|in:pending,on_progress,pending_approval,pending_revision,completed,disputed,cancelled',
+            'completion_notes' => 'sometimes|nullable|string|max:2000',
+            'finished_at' => 'sometimes|nullable|date',
+            'completion_images' => 'sometimes|array|min:1',
+            'completion_images.*' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $uploadedImages = $request->file('completion_images') ?? [];
+
+        $result = $this->transactionService->updateTransaction($id, $data, $uploadedImages);
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Cancel a transaction manually.
+     *
+     * @param Request $request
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function cancel(Request $request, string $id): JsonResponse
+    {
+        $result = $this->transactionService->cancelTransaction(
+            $id,
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
+
+    /**
+     * Get a transaction by its ID.
+     *
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function getById(string $id): JsonResponse
+    {
+        $result = $this->transactionService->getTransactionById($id);
+
+        return response()->json($result, $result['code']);
+    }
 }
+
+
+

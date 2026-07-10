@@ -2,15 +2,15 @@
 
 namespace App\Filament\Resources\Transactions\Tables;
 
+use App\Models\Transaction;
+use Filament\Actions\Action;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Tables\Table;
+use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Actions\Action;
-use Filament\Actions\ViewAction;
-use App\Models\Transaction;
+use Filament\Tables\Table;
 
 class TransactionsTable
 {
@@ -21,23 +21,28 @@ class TransactionsTable
                 TextColumn::make('id')
                     ->label('ID')
                     ->searchable()
+                    ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
+                TextColumn::make('offer.title')
+                    ->label('Offer Title')
+                    ->searchable(),
+
                 TextColumn::make('requester.first_name')
                     ->label('Requester')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('helper.first_name')
                     ->label('Helper')
                     ->searchable()
                     ->sortable(),
-                
+
                 TextColumn::make('total_price')
                     ->label('Total (Rp)')
                     ->money('idr')
                     ->sortable(),
-                
+
                 TextColumn::make('status')
                     ->label('Status')
                     ->badge()
@@ -50,13 +55,13 @@ class TransactionsTable
                         default => 'gray',
                     })
                     ->searchable(),
-                
+
                 TextColumn::make('deadline')
                     ->label('Batas Waktu')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(),
-                
+
                 TextColumn::make('created_at')
                     ->label('Dibuat Pada')
                     ->dateTime('d M Y H:i')

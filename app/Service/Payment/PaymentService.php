@@ -13,6 +13,7 @@ use Illuminate\Validation\ValidationException;
 use Midtrans\Config as MidtransConfig;
 use Midtrans\Notification;
 use Midtrans\Snap;
+use Midtrans\CoreApi;
 
 class PaymentService
 {
@@ -104,14 +105,14 @@ class PaymentService
             ]);
 
             // Buat Snap Token Midtrans
-            $snapToken = $this->createSnapToken($transaction, $payment, $offer);
+            $snapToken = $this->createSnapToken($transaction, $payment, $offer, $bank);
 
             // Simpan snap token
             $payment->update(['snap_token' => $snapToken]);
 
             return $this->successPayload([
                 'transaction'       => $transaction,
-                'payment'           => $payment,
+                'payment'           => $payment->fresh(),
                 'snap_token'        => $snapToken,
                 'midtrans_order_id' => $midtransOrderId,
                 'amount'            => $totalPrice,
@@ -155,6 +156,8 @@ class PaymentService
             $vaNumber = $rawNotification['va_numbers'][0]['va_number'] ?? null;
         } elseif (isset($rawNotification['permata_va_number'])) {
             $vaNumber = $rawNotification['permata_va_number'];
+        } elseif (isset($rawNotification['bill_key'])) {
+            $vaNumber = ($rawNotification['biller_code'] ?? '') . '-' . $rawNotification['bill_key'];
         }
 
         Log::info('Midtrans webhook received', [
@@ -227,6 +230,51 @@ class PaymentService
             ]);
         }
 
+        $payment = $transaction->payment;
+        if ($payment && $payment->status === 'pending') {
+            $this->configureMidtrans();
+            try {
+                // Tanya langsung ke API Midtrans mengenai status transaksi ter-update
+                $midtransStatus = \Midtrans\Transaction::status($payment->midtrans_order_id);
+                $midtransStatusArray = json_decode(json_encode($midtransStatus), true);
+
+                $transactionStatus = $midtransStatusArray['transaction_status'] ?? null;
+                $fraudStatus       = $midtransStatusArray['fraud_status'] ?? null;
+                $vaNumber          = null;
+
+                if (isset($midtransStatusArray['va_numbers']) && is_array($midtransStatusArray['va_numbers']) && count($midtransStatusArray['va_numbers']) > 0) {
+                    $vaNumber = $midtransStatusArray['va_numbers'][0]['va_number'] ?? null;
+                } elseif (isset($midtransStatusArray['permata_va_number'])) {
+                    $vaNumber = $midtransStatusArray['permata_va_number'];
+                } elseif (isset($midtransStatusArray['bill_key'])) {
+                    $vaNumber = ($midtransStatusArray['biller_code'] ?? '') . '-' . $midtransStatusArray['bill_key'];
+                }
+
+                // Update nomor VA jika belum ada
+                if ($vaNumber && !$payment->va_number) {
+                    $payment->update(['va_number' => $vaNumber]);
+                }
+
+                // Jika statusnya settlement atau capture (CC) yang diterima, update database lokal
+                if ($transactionStatus === 'settlement' || ($transactionStatus === 'capture' && $fraudStatus === 'accept')) {
+                    DB::transaction(function () use ($payment, $transaction) {
+                        $this->markPaymentSuccess($payment, $transaction);
+                    });
+                    
+                    // Refresh data transaksi setelah di-update
+                    $transaction->refresh();
+                } elseif (in_array($transactionStatus, ['cancel', 'deny', 'expire'])) {
+                    DB::transaction(function () use ($payment, $transaction) {
+                        $payment->update(['status' => 'failed']);
+                        $transaction->update(['status' => 'cancelled']);
+                    });
+                    $transaction->refresh();
+                }
+            } catch (\Exception $e) {
+                Log::warning("Gagal fetch status dari Midtrans API: " . $e->getMessage());
+            }
+        }
+
         return $this->successPayload($transaction);
     }
 
@@ -266,7 +314,7 @@ class PaymentService
     /**
      * Buat Snap Token dari Midtrans.
      */
-    private function createSnapToken(Transaction $transaction, Payment $payment, Offer $offer): string
+    private function createSnapToken(Transaction $transaction, Payment $payment, Offer $offer, ?string $bank = null): string
     {
         $requester = $offer->requester;
 
@@ -295,14 +343,94 @@ class PaymentService
                     'name'     => 'Biaya Platform Bantuin',
                 ],
             ],
-            // Aktifkan hanya Virtual Account
-            'enabled_payments' => [
+        ];
+
+        // Filter enabled payment method based on selected bank/payment channel
+        if ($bank) {
+            $bankLower = strtolower($bank);
+            if ($bankLower === 'gopay') {
+                $params['enabled_payments'] = ['gopay', 'qris'];
+            } else if ($bankLower === 'card') {
+                $params['enabled_payments'] = ['credit_card'];
+            } else if ($bankLower === 'bca') {
+                $params['enabled_payments'] = ['bca_va'];
+            } else if ($bankLower === 'bni') {
+                $params['enabled_payments'] = ['bni_va'];
+            } else if ($bankLower === 'bri') {
+                $params['enabled_payments'] = ['bri_va'];
+            } else if ($bankLower === 'mandiri') {
+                $params['enabled_payments'] = ['echannel', 'mandiri_va'];
+            } else if ($bankLower === 'permata') {
+                $params['enabled_payments'] = ['permata_va'];
+            } else {
+                $params['enabled_payments'] = [$bankLower . '_va'];
+            }
+        } else {
+            $params['enabled_payments'] = [
                 'bca_va', 'bni_va', 'bri_va', 'mandiri_va',
                 'cimb_va', 'danamon_va', 'permata_va', 'other_va',
+                'gopay', 'qris', 'credit_card'
+            ];
+        }
+
+        return Snap::getSnapToken($params);
+    }
+
+    /**
+     * Charge direct bank transfer menggunakan Midtrans Core API.
+     */
+    private function chargeDirectBankTransfer(Transaction $transaction, Payment $payment, Offer $offer, string $bank): array
+    {
+        $requester = $offer->requester;
+
+        $params = [
+            'payment_type' => 'bank_transfer',
+            'transaction_details' => [
+                'order_id'     => $payment->midtrans_order_id,
+                'gross_amount' => (int) $payment->amount,
+            ],
+            'customer_details' => [
+                'first_name' => $requester->first_name ?? 'User',
+                'last_name'  => $requester->last_name ?? '',
+                'email'      => $requester->email,
+                'phone'      => $requester->phone ?? '',
+            ],
+            'item_details' => [
+                [
+                    'id'       => $offer->id,
+                    'price'    => (int) $transaction->final_price,
+                    'quantity' => 1,
+                    'name'     => 'Bantuan Jasa - ' . ($offer->post?->title ?? 'Layanan'),
+                ],
+                [
+                    'id'       => 'PLATFORM_FEE',
+                    'price'    => (int) $transaction->admin_fee,
+                    'quantity' => 1,
+                    'name'     => 'Biaya Platform Bantuin',
+                ],
             ],
         ];
 
-        return Snap::getSnapToken($params);
+        if ($bank === 'mandiri') {
+            $params['payment_type'] = 'echannel';
+            $params['echannel'] = [
+                'bill_info1' => 'Bantuin Jasa',
+                'bill_info2' => 'Payment for order ' . $payment->midtrans_order_id,
+            ];
+        } else if ($bank === 'permata') {
+            $params['bank_transfer'] = [
+                'bank' => 'permata',
+            ];
+        } else {
+            // bca, bni, bri
+            $params['bank_transfer'] = [
+                'bank' => $bank,
+            ];
+        }
+
+        $response = CoreApi::charge($params);
+
+        return json_decode(json_encode($response), true);
     }
 
     /**

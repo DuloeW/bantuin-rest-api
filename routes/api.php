@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\Post\PostController;
 use App\Http\Controllers\Api\Skill\SkillController;
 use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
+use App\Http\Controllers\Api\User\UserSkillController;
+use App\Http\Controllers\Api\Withdrawal\WithdrawalController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -24,14 +26,23 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/logout', [AuthController::class,'logout']);
 
+    Route::get('/user/skills', [UserSkillController::class, 'index']);
+    Route::post('/user/skills', [UserSkillController::class, 'store']);
+    Route::delete('/user/skills/{skillId}', [UserSkillController::class, 'destroy']);
+
     Route::get('/users/profile', [UserController::class, 'getProfile']);
+    Route::get('/users/activity-analytics', [UserController::class, 'getActivityAnalytics']);
+    Route::get('/users/jobs', [UserController::class, 'getMyJobs']);
     Route::get('/users', [UserController::class, 'getAll']);
     Route::put('/users', [UserController::class, 'update']);
+    Route::patch('/users/wallet', [UserController::class, 'updateWalletBalance']);
     Route::put('/users/password', [UserController::class, 'changePassword']);
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
     Route::get('/users/posts/{id}', [UserController::class, 'getUsersPosts']);
+    Route::post('/users/{id}/report', [UserController::class, 'reportUser']);
+    Route::patch('/users/accept-terms', [UserController::class, 'acceptTerms']);
 
     Route::get('/categories', [CategoryController::class, 'getAll']);
     Route::post('/categories', [CategoryController::class, 'create']);
@@ -41,17 +52,21 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/posts', [PostController::class, 'getAll']);
     Route::get('/posts/search', [PostController::class, 'search']);
+    Route::get('/posts/near-me', [PostController::class, 'nearMe']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
     Route::post('/posts/request', [PostController::class, 'createRequest']);
     Route::post('/posts/offer', [PostController::class, 'createOffer']);
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
     Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
+    Route::get('/posts/{id}', [PostController::class, 'getById']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
+    Route::post('/posts/{id}/report', [PostController::class, 'reportPost']);
 
     Route::get('/addresses/provinces', [AddressController::class, 'getProvinces']);
     Route::get('/addresses/provinces/{provinceId}/cities', [AddressController::class, 'getCitiesByProvince']);
     Route::get('/addresses/cities/{cityId}/districts', [AddressController::class, 'getDistrictsByCity']);
     Route::get('/addresses/districts/{districtId}/villages', [AddressController::class, 'getVillagesByDistrict']);
+    Route::post('/addresses/match', [AddressController::class, 'matchAddressNames']);
 
     Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
     Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
@@ -80,10 +95,21 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments', [PaymentController::class, 'create']);
     Route::get('/payments/transactions/{transactionId}', [PaymentController::class, 'status']);
     Route::get('/transactions', [TransactionController::class, 'index']);
+    Route::get('/transactions/active', [TransactionController::class, 'activeTransactions']);
+    Route::get('/transactions/reviewed', [TransactionController::class, 'reviewedHistory']);
+    Route::get('/transactions/{id}', [TransactionController::class, 'getById']);
+    Route::post('/transactions/{id}/reviews', [TransactionController::class, 'review']);
     Route::post('/transactions/{id}/complete', [TransactionController::class, 'complete']);
+    Route::post('/transactions/{id}/update', [TransactionController::class, 'update']);
+    Route::post('/transactions/{id}/cancel', [TransactionController::class, 'cancel']);
     Route::post('/transactions/{id}/approve', [TransactionController::class, 'approve']);
+    Route::post('/transactions/{id}/transfer', [TransactionController::class, 'transfer']);
     Route::post('/transactions/{id}/revision', [TransactionController::class, 'revision']);
     Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'requestRefund']);
     Route::post('/refunds/{refundId}/respond', [TransactionController::class, 'respondRefund']);
+
+    // Withdrawals (Penarikan Dana Helper)
+    Route::get('/withdrawals', [WithdrawalController::class, 'index']);
+    Route::post('/withdrawals', [WithdrawalController::class, 'store']);
 });
