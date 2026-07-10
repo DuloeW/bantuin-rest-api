@@ -2,6 +2,7 @@
 
 namespace App\Service\Transaction;
 
+use App\Jobs\AutoApproveTransaction;
 use App\Models\Transaction;
 use App\Models\TransactionRevision;
 use App\Models\ReportTransaction;
@@ -82,6 +83,11 @@ class TransactionService
 
                 // Reload relations and return updated transaction
                 $transaction->load(['completionImages', 'helper', 'requester', 'offer']);
+
+                // Dispatch auto-approval job delayed by 1 minute
+                AutoApproveTransaction::dispatch($transaction->id)
+                    ->delay(now()->addMinute())
+                    ->afterCommit();
 
                 return $this->successPayload($transaction, 'Transaksi berhasil diselesaikan.');
             });
@@ -374,6 +380,12 @@ class TransactionService
                     }
 
                     $transaction->load(['completionImages', 'revisions', 'revisions.images']);
+
+                    // Dispatch auto-approval job delayed by 1 minute
+                    AutoApproveTransaction::dispatch($transaction->id)
+                        ->delay(now()->addMinute())
+                        ->afterCommit();
+
                     return $this->successPayload($transaction, 'Laporan revisi berhasil dikirim ke requester.');
                 } else {
                     // action === 'rejected'

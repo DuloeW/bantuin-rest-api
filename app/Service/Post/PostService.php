@@ -537,7 +537,10 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                      ->withAvg('reviewReceived as avg_rating', 'rating')
+                      ->with(['reviewReceived' => function ($q) {
+                          $q->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images'])->latest();
+                      }]);
             },
             'users.photoProfile',
             'requestDetail' => function ($query) {
@@ -555,28 +558,20 @@ class PostService
             'offerDetail.district:id,name',
             'offerDetail.village:id,name',
             'images',
-            'offers.transaction.reviews' => function ($query) {
-                $query->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images']);
-            },
         ])->find($id);
 
         if (!$post) {
             return $this->errorPayload('post not found', [], 404);
         }
 
-        // Flatten reviews from offers -> transaction -> reviews
-        $reviews = collect();
-        if ($post->offers) {
-            foreach ($post->offers as $offer) {
-                if ($offer->transaction && $offer->transaction->reviews) {
-                    foreach ($offer->transaction->reviews as $review) {
-                        $reviews->push($review);
-                    }
-                }
-            }
-        }
+        // Set reviews to user's overall reviews
+        $reviews = $post->users && $post->users->reviewReceived ? $post->users->reviewReceived : collect();
         $post->setRelation('reviews', $reviews);
-        unset($post->offers); // Hide offers relation from response if not needed
+
+        // Hide reviewReceived relation from users inside the response to keep it clean
+        if ($post->users) {
+            $post->users->unsetRelation('reviewReceived');
+        }
 
         return $this->successPayload($post, 'post retrieved successfully');
     }

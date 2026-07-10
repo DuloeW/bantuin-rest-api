@@ -41,4 +41,21 @@ trait ServiceResponse
             'code' => $code,
         ];
     }
+
+    /**
+     * Return an auth success payload (standard OAuth2 root fields)
+     *
+     * @param array $data
+     * @param string $message
+     * @param int $code
+     * @return array
+     */
+    protected function authSuccessPayload(array $data, string $message = 'Success', int $code = 200): array
+    {
+        return array_merge([
+            'success' => true,
+            'code' => $code,
+            'message' => $message,
+        ], $data);
+    }
 }
