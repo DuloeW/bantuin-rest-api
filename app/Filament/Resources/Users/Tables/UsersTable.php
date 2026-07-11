@@ -26,13 +26,13 @@ class UsersTable
                     ->searchable(),
                 TextColumn::make('phone')
                     ->searchable(),
-                TextColumn::make('province')
+                TextColumn::make('province.name')
                     ->searchable(),
-                TextColumn::make('district')
+                TextColumn::make('district.name')
                     ->searchable(),
-                TextColumn::make('sub_district')
+                TextColumn::make('city.name')
                     ->searchable(),
-                TextColumn::make('village')
+                TextColumn::make('village.name')
                     ->searchable(),
                 TextColumn::make('neighborhood_unit')
                     ->searchable(),

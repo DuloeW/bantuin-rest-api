@@ -24,10 +24,6 @@ class TransactionsTable
                     ->copyable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('offer.title')
-                    ->label('Offer Title')
-                    ->searchable(),
-
                 TextColumn::make('requester.first_name')
                     ->label('Requester')
                     ->searchable()

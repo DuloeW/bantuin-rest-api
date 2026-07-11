@@ -8,6 +8,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
+use Illuminate\Support\HtmlString;
 
 class TransactionForm
 {
@@ -92,6 +94,22 @@ class TransactionForm
                     Textarea::make('completion_notes')
                         ->label('Catatan Penyelesaian')
                         ->disabled(),
+
+                    Placeholder::make('completion_photos')
+                        ->label('Foto Penyelesaian Pekerjaan')
+                        ->content(function ($record) {
+                            if ($record && $record->completionImages->count() > 0) {
+                                $html = '<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">';
+                                foreach ($record->completionImages as $image) {
+                                    $url = str_starts_with($image->url, 'http') ? $image->url : \Illuminate\Support\Facades\Storage::url($image->url);
+                                    $html .= '<a href="'. e($url) .'" target="_blank"><img src="' . e($url) . '" alt="Foto Penyelesaian" style="max-height: 150px; border-radius: 8px; border: 1px solid #333;" /></a>';
+                                }
+                                $html .= '</div>';
+                                return new HtmlString($html);
+                            }
+                            return 'Belum ada foto penyelesaian';
+                        })
+                        ->columnSpanFull(),
                 ]),
         ]);
     }

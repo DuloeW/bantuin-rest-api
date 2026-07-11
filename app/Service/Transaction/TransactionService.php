@@ -674,20 +674,11 @@ class TransactionService
                 if ($action === 'approved') {
                     // Update refund record
                     $refund->update([
-                        'status' => 'completed',
+                        'status' => 'processing',
                         'processed_at' => now(),
                     ]);
 
-                    // Update escrow
-                    $escrow = $transaction->escrow;
-                    if ($escrow) {
-                        $escrow->update([
-                            'status' => 'refunded',
-                            'refunded_at' => now(),
-                        ]);
-                    }
-
-                    // Update transaction status
+                    // Update transaction status to pending_refund
                     $transaction->update([
                         'status' => 'cancelled',
                     ]);

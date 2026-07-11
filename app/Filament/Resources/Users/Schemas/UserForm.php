@@ -30,14 +30,26 @@ class UserForm
                 TextInput::make('phone')
                     ->tel()
                     ->disabledOn('edit'),
-                TextInput::make('province')
-                    ->disabledOn('edit'),
-                TextInput::make('district')
-                    ->disabledOn('edit'),
-                TextInput::make('sub_district')
-                    ->disabledOn('edit'),
-                TextInput::make('village')
-                    ->disabledOn('edit'),
+                TextInput::make('province_name')
+                    ->label('Province')
+                    ->formatStateUsing(fn ($record) => $record?->province?->name)
+                    ->disabledOn('edit')
+                    ->dehydrated(false),
+                TextInput::make('city_name')
+                    ->label('City')
+                    ->formatStateUsing(fn ($record) => $record?->city?->name)
+                    ->disabledOn('edit')
+                    ->dehydrated(false),
+                TextInput::make('district_name')
+                    ->label('District')
+                    ->formatStateUsing(fn ($record) => $record?->district?->name)
+                    ->disabledOn('edit')
+                    ->dehydrated(false),
+                TextInput::make('village_name')
+                    ->label('Village')
+                    ->formatStateUsing(fn ($record) => $record?->village?->name)
+                    ->disabledOn('edit')
+                    ->dehydrated(false),
                 TextInput::make('neighborhood_unit')
                     ->disabledOn('edit'),
                 TextInput::make('wallet_balance')
