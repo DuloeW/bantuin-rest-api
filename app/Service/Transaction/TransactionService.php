@@ -2,15 +2,16 @@
 
 namespace App\Service\Transaction;
 
+use App\Enum\ActiveOffEnum;
+use App\Enum\OfferingStatusEnum;
 use App\Jobs\AutoApproveTransaction;
+use App\Models\Refund;
+use App\Models\ReportTransaction;
+use App\Models\Review;
 use App\Models\Transaction;
 use App\Models\TransactionRevision;
-use App\Models\ReportTransaction;
-use App\Models\Refund;
-use App\Models\Review;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
-use App\Enum\OfferingStatusEnum;
-use App\Enum\ActiveOffEnum;
 use Exception;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
@@ -43,21 +44,21 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 // Check authorization
                 if ($transaction->helper_id !== $helperId) {
                     throw ValidationException::withMessages([
-                        'helper' => ['Hanya helper yang ditugaskan yang dapat menyelesaikan transaksi ini.']
+                        'helper' => ['Only the assigned helper can complete this transaction.']
                     ]);
                 }
 
                 // Check transaction status (must be on_progress to be completed)
                 if ($transaction->status !== 'on_progress') {
                     throw ValidationException::withMessages([
-                        'status' => ['Transaksi hanya dapat diselesaikan jika berstatus "on_progress". Status saat ini: ' . $transaction->status]
+                        'status' => ['Transaction can only be completed when status is "on_progress". Current status: ' . $transaction->status]
                     ]);
                 }
 
@@ -86,10 +87,31 @@ class TransactionService
 
                 // Dispatch auto-approval job delayed by 1 minute
                 AutoApproveTransaction::dispatch($transaction->id)
-                    ->delay(now()->addMinute())
+                    ->delay(now()->addHour(24))
                     ->afterCommit();
 
-                return $this->successPayload($transaction, 'Transaksi berhasil diselesaikan.');
+                if ($transaction->requester) {
+                    try {
+                        $projectTitle = $transaction->offer->post->title ?? 'Project';
+                        $providerName = $transaction->helper->first_name ?? 'Provider';
+
+                        app(NotificationService::class)->sendToUser(
+                            $transaction->requester,
+                            'Work Submitted for Review',
+                            $providerName . ' has submitted the final work for "' . $projectTitle . '". Please review and confirm within the time limit.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'offer_id'       => (string) $transaction->offer_id,
+                                'screen'         => 'offer_list',
+                            ],
+                            'work_submission'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send work submission notification: ' . $e->getMessage());
+                    }
+                }
+
+                return $this->successPayload($transaction, 'Transaction completed successfully.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -124,7 +146,7 @@ class TransactionService
 
         $transactions = $query->latest()->get();
 
-        return $this->successPayload($transactions, 'Transaksi berhasil diambil.');
+        return $this->successPayload($transactions, 'Transactions retrieved successfully.');
     }
 
     /**
@@ -141,7 +163,7 @@ class TransactionService
             ->latest()
             ->get();
 
-        return $this->successPayload($transactions, 'Transaksi aktif berhasil diambil.');
+        return $this->successPayload($transactions, 'Active transactions retrieved successfully.');
     }
 
     /**
@@ -155,25 +177,25 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 if ($transaction->requester_id !== $requesterId) {
                     throw ValidationException::withMessages([
-                        'requester' => ['Hanya requester yang dapat menyetujui transaksi ini.']
+                        'requester' => ['Only the requester can approve this transaction.']
                     ]);
                 }
 
                 if ($transaction->status !== 'pending_approval') {
                     throw ValidationException::withMessages([
-                        'status' => ['Transaksi hanya dapat disetujui jika berstatus "pending_approval". Status saat ini: ' . $transaction->status]
+                        'status' => ['Transaction can only be approved when status is "pending_approval". Current status: ' . $transaction->status]
                     ]);
                 }
 
                 if ($transaction->completion_notes === null) {
                     throw ValidationException::withMessages([
-                        'work' => ['Helper belum mengirimkan bukti/laporan hasil pekerjaan.']
+                        'work' => ['The helper has not yet submitted proof/report of completed work.']
                     ]);
                 }
 
@@ -206,7 +228,7 @@ class TransactionService
                     $escrow->update([
                         'status' => 'released',
                         'released_at' => now(),
-                        'release_notes' => 'Pekerjaan diterima dan disetujui',
+                        'release_notes' => 'Work accepted and approved',
                     ]);
 
                     // Add funds to helper's wallet balance
@@ -222,7 +244,27 @@ class TransactionService
             // Auto-payout has been removed. Funds now only increase the wallet_balance,
             // and the helper must manually request a withdrawal via the Withdrawal API.
 
-            return $this->successPayload($transaction->load(['helper', 'requester', 'escrow']), 'Transaksi disetujui dan dana dilepas ke helper.');
+            if ($transaction->helper) {
+                try {
+                    $projectTitle = $transaction->offer->post->title ?? 'Project';
+
+                    app(NotificationService::class)->sendToUser(
+                        $transaction->helper,
+                        'Work Accepted!',
+                        'Your work submission for "' . $projectTitle . '" has been accepted by the requester. Thank you for your service!',
+                        [
+                            'transaction_id' => (string) $transaction->id,
+                            'offer_id'       => (string) $transaction->offer_id,
+                            'screen'         => 'offer_list',
+                        ],
+                        'work_accepted'
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to send work accepted notification: ' . $e->getMessage());
+                }
+            }
+
+            return $this->successPayload($transaction->load(['helper', 'requester', 'escrow']), 'Transaction approved and funds released to helper.');
 
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -244,25 +286,25 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 if ($transaction->requester_id !== $requesterId) {
                     throw ValidationException::withMessages([
-                        'requester' => ['Hanya requester yang dapat meminta revisi untuk transaksi ini.']
+                        'requester' => ['Only the requester can request a revision for this transaction.']
                     ]);
                 }
 
                 if ($transaction->status !== 'pending_approval') {
                     throw ValidationException::withMessages([
-                        'status' => ['Revisi hanya dapat diminta jika transaksi berstatus "pending_approval". Status saat ini: ' . $transaction->status]
+                        'status' => ['Revision can only be requested when the transaction is in "pending_approval" status. Current status: ' . $transaction->status]
                     ]);
                 }
 
                 if ($transaction->completion_notes === null) {
                     throw ValidationException::withMessages([
-                        'work' => ['Helper belum mengirimkan bukti/laporan hasil pekerjaan, revisi tidak dapat diminta.']
+                        'work' => ['The helper has not submitted proof of work yet, revision cannot be requested.']
                     ]);
                 }
 
@@ -270,7 +312,7 @@ class TransactionService
                 $hasPendingRevision = $transaction->revisions()->where('status', 'pending')->exists();
                 if ($hasPendingRevision) {
                     throw ValidationException::withMessages([
-                        'revision' => ['Masih ada revisi aktif yang belum diselesaikan oleh helper.']
+                        'revision' => ['There is still an active revision that has not been resolved by the helper.']
                     ]);
                 }
 
@@ -278,7 +320,7 @@ class TransactionService
                 $revisionCount = $transaction->revisions()->count();
                 if ($revisionCount >= $transaction->max_revision) {
                     throw ValidationException::withMessages([
-                        'revision' => ['Batas maksimal revisi (' . $transaction->max_revision . ' kali) telah tercapai. Jika masih bermasalah, silakan ajukan laporan sengketa.']
+                        'revision' => ['Maximum revision limit (' . $transaction->max_revision . ' times) has been reached. If issues persist, please file a dispute report.']
                     ]);
                 }
 
@@ -306,7 +348,27 @@ class TransactionService
                     'status' => 'pending_revision',
                 ]);
 
-                return $this->successPayload($revision->load('images'), 'Permintaan revisi berhasil dikirim.');
+                if ($transaction->helper) {
+                    try {
+                        $projectTitle = $transaction->offer->post->title ?? 'Project';
+
+                        app(NotificationService::class)->sendToUser(
+                            $transaction->helper,
+                            'Revision Requested',
+                            'The requester has requested a revision for "' . $projectTitle . '". Please check the feedback and update your work.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'offer_id'       => (string) $transaction->offer_id,
+                                'screen'         => 'offer_list',
+                            ],
+                            'revision_requested'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send revision requested notification: ' . $e->getMessage());
+                    }
+                }
+
+                return $this->successPayload($revision->load('images'), 'Revision request sent successfully.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -333,7 +395,7 @@ class TransactionService
 
                 if (!$revision) {
                     throw ValidationException::withMessages([
-                        'revision' => ['Data revisi tidak ditemukan.']
+                        'revision' => ['Revision data not found.']
                     ]);
                 }
 
@@ -341,13 +403,13 @@ class TransactionService
 
                 if (!$transaction || $transaction->helper_id !== $helperId) {
                     throw ValidationException::withMessages([
-                        'helper' => ['Hanya helper yang ditugaskan yang dapat merespons revisi ini.']
+                        'helper' => ['Only the assigned helper can respond to this revision.']
                     ]);
                 }
 
                 if ($revision->status !== 'pending') {
                     throw ValidationException::withMessages([
-                        'status' => ['Revisi sudah diproses sebelumnya. Status saat ini: ' . $revision->status]
+                        'status' => ['This revision has already been processed. Current status: ' . $revision->status]
                     ]);
                 }
 
@@ -381,12 +443,11 @@ class TransactionService
 
                     $transaction->load(['completionImages', 'revisions', 'revisions.images']);
 
-                    // Dispatch auto-approval job delayed by 1 minute
                     AutoApproveTransaction::dispatch($transaction->id)
-                        ->delay(now()->addMinute())
+                        ->delay(now()->addHours(24))
                         ->afterCommit();
 
-                    return $this->successPayload($transaction, 'Laporan revisi berhasil dikirim ke requester.');
+                    return $this->successPayload($transaction, 'Revision report submitted to requester successfully.');
                 } else {
                     // action === 'rejected'
                     // Update revision status
@@ -398,6 +459,10 @@ class TransactionService
                     $transaction->update([
                         'status' => 'disputed',
                     ]);
+
+                    if ($transaction->offer) {
+                        $transaction->offer->update(['status' => 'completed']);
+                    }
 
                     // Update escrow
                     $escrow = $transaction->escrow;
@@ -413,7 +478,7 @@ class TransactionService
                         'transaction_id' => $transaction->id,
                         'reporter_id' => $helperId,
                         'reported_id' => $transaction->requester_id,
-                        'reason_category' => 'Revisi Ditolak oleh Helper',
+                        'reason_category' => 'Revision Declined by Helper',
                         'description' => $data['dispute_reason'],
                         'status' => 'pending',
                     ]);
@@ -431,7 +496,7 @@ class TransactionService
                         ]);
                     }
 
-                    return $this->successPayload($report, 'Revisi ditolak. Transaksi dialihkan ke status sengketa (disputed) untuk dimediasi admin.');
+                    return $this->successPayload($report, 'Revision declined. Transaction moved to disputed status for admin mediation.');
                 }
             });
         } catch (ValidationException $e) {
@@ -457,20 +522,20 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 if ($transaction->requester_id !== $requesterId) {
                     throw ValidationException::withMessages([
-                        'requester' => ['Hanya requester yang dapat mengajukan refund untuk transaksi ini.']
+                        'requester' => ['Only the requester can file a refund for this transaction.']
                     ]);
                 }
 
                 $escrow = $transaction->escrow;
                 if (!$escrow || $escrow->status !== 'held') {
                     throw ValidationException::withMessages([
-                        'escrow' => ['Refund hanya dapat diajukan jika dana masih ditahan di escrow. Status escrow saat ini: ' . ($escrow ? $escrow->status : 'tidak ada')]
+                        'escrow' => ['Refund can only be requested while funds are still held in escrow. Current escrow status: ' . ($escrow ? $escrow->status : 'none')]
                     ]);
                 }
 
@@ -481,7 +546,7 @@ class TransactionService
 
                 if ($hasActiveRefund) {
                     throw ValidationException::withMessages([
-                        'refund' => ['Pengajuan refund aktif untuk transaksi ini sudah ada dan sedang diproses.']
+                        'refund' => ['An active refund request for this transaction already exists and is being processed.']
                     ]);
                 }
 
@@ -514,7 +579,27 @@ class TransactionService
                     'status' => 'pending_refund',
                 ]);
 
-                return $this->successPayload($refund, 'Pengajuan refund berhasil dikirim. Menunggu persetujuan helper.');
+                if ($transaction->helper) {
+                    try {
+                        $projectTitle = $transaction->offer->post->title ?? 'Project';
+
+                        app(NotificationService::class)->sendToUser(
+                            $transaction->helper,
+                            'Refund Request Submitted',
+                            'A refund request has been filed for "' . $projectTitle . '". The request is currently being processed.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'offer_id'       => (string) $transaction->offer_id,
+                                'screen'         => 'offer_list',
+                            ],
+                            'refund_submitted'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send refund submitted notification: ' . $e->getMessage());
+                    }
+                }
+
+                return $this->successPayload($refund, 'Refund request submitted successfully. Awaiting helper approval.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -537,20 +622,20 @@ class TransactionService
 
                 if (!$refund) {
                     throw ValidationException::withMessages([
-                        'refund' => ['Data pengajuan refund tidak ditemukan.']
+                        'refund' => ['Refund request data not found.']
                     ]);
                 }
 
                 if ($refund->status !== 'pending') {
                     throw ValidationException::withMessages([
-                        'status' => ['Pengajuan refund ini sudah diproses sebelumnya. Status saat ini: ' . $refund->status]
+                        'status' => ['This refund request has already been processed. Current status: ' . $refund->status]
                     ]);
                 }
 
                 $transaction = $refund->transaction;
                 if (!$transaction || $transaction->helper_id !== $helperId) {
                     throw ValidationException::withMessages([
-                        'helper' => ['Hanya helper yang ditugaskan pada transaksi ini yang dapat merespons pengajuan refund.']
+                        'helper' => ['Only the assigned helper on this transaction can respond to the refund request.']
                     ]);
                 }
 
@@ -577,7 +662,11 @@ class TransactionService
                         'status' => 'cancelled',
                     ]);
 
-                    return $this->successPayload($refund->load('transaction'), 'Permintaan refund disetujui. Dana akan dikembalikan ke requester.');
+                    if ($transaction->offer) {
+                        $transaction->offer->update(['status' => 'completed']);
+                    }
+
+                    return $this->successPayload($refund->load('transaction'), 'Refund request approved. Funds will be returned to the requester.');
                 } else {
                     // action === 'rejected'
                     // Update refund record
@@ -589,6 +678,10 @@ class TransactionService
                     $transaction->update([
                         'status' => 'disputed',
                     ]);
+
+                    if ($transaction->offer) {
+                        $transaction->offer->update(['status' => 'completed']);
+                    }
 
                     // Update escrow status to disputed
                     $escrow = $transaction->escrow;
@@ -604,12 +697,12 @@ class TransactionService
                         'transaction_id' => $transaction->id,
                         'reporter_id' => $transaction->requester_id,
                         'reported_id' => $helperId,
-                        'reason_category' => 'Refund Ditolak oleh Helper',
-                        'description' => $data['dispute_reason'] ?? 'Helper menolak pengajuan refund dari requester.',
+                        'reason_category' => 'Refund Declined by Helper',
+                        'description' => $data['dispute_reason'] ?? 'Helper declined the refund request from requester.',
                         'status' => 'pending',
                     ]);
 
-                    return $this->successPayload($report, 'Refund ditolak. Transaksi dialihkan ke status sengketa (disputed) untuk dimediasi admin.');
+                    return $this->successPayload($report, 'Refund declined. Transaction moved to disputed status for admin mediation.');
                 }
             });
         } catch (ValidationException $e) {
@@ -649,7 +742,7 @@ class TransactionService
             ->latest()
             ->get();
 
-            return $this->successPayload($transactions, 'Riwayat transaksi yang sudah di-review berhasil diambil.');
+            return $this->successPayload($transactions, 'Reviewed transaction history retrieved successfully.');
         } catch (Exception $e) {
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
@@ -675,14 +768,14 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 // Check transaction status (must be completed to be reviewed)
                 if ($transaction->status !== 'completed') {
                     throw ValidationException::withMessages([
-                        'status' => ['Review hanya dapat diberikan jika transaksi sudah berstatus "completed". Status saat ini: ' . $transaction->status]
+                        'status' => ['A review can only be submitted when the transaction is "completed". Current status: ' . $transaction->status]
                     ]);
                 }
 
@@ -692,7 +785,7 @@ class TransactionService
 
                 if (!$isRequester && !$isHelper) {
                     throw ValidationException::withMessages([
-                        'user' => ['Hanya requester atau helper yang bersangkutan yang dapat me-review transaksi ini.']
+                        'user' => ['Only the requester or helper involved in this transaction can submit a review.']
                     ]);
                 }
 
@@ -703,7 +796,7 @@ class TransactionService
 
                 if ($alreadyReviewed) {
                     throw ValidationException::withMessages([
-                        'review' => ['Anda sudah memberikan ulasan untuk transaksi ini.']
+                        'review' => ['You have already submitted a review for this transaction.']
                     ]);
                 }
 
@@ -734,7 +827,27 @@ class TransactionService
 
                 $review->load(['reviewer.photoProfile', 'reviewed.photoProfile', 'images']);
 
-                return $this->successPayload($review, 'Ulasan berhasil dikirim.', 201);
+                if ($review->reviewed) {
+                    try {
+                        $projectTitle = $transaction->offer->post->title ?? 'Project';
+
+                        app(NotificationService::class)->sendToUser(
+                            $review->reviewed,
+                            'You Received a New Review!',
+                            'Someone has just rated their experience working with you on "' . $projectTitle . '". View your feedback now.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'review_id'      => (string) $review->id,
+                                'screen'         => 'offer_list',
+                            ],
+                            'new_review'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send new review notification: ' . $e->getMessage());
+                    }
+                }
+
+                return $this->successPayload($review, 'Review submitted successfully.', 201);
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -758,25 +871,25 @@ class TransactionService
         try {
             $transaction = Transaction::with(['helper.primaryBankAccount', 'escrow'])->find($transactionId);
             if (!$transaction) {
-                throw new Exception('Transaksi tidak ditemukan.');
+                throw new Exception('Transaction not found.');
             }
 
             $helper = $transaction->helper;
             if (!$helper) {
-                throw new Exception('Helper tidak ditemukan untuk transaksi ini.');
+                throw new Exception('Helper not found for this transaction.');
             }
 
             // Get helper's primary bank account
             $bankAccount = $helper->primaryBankAccount;
             if (!$bankAccount) {
                 throw ValidationException::withMessages([
-                    'bank_account' => ['Helper belum mendaftarkan rekening bank utama untuk pencairan otomatis.']
+                    'bank_account' => ['Helper has not registered a primary bank account for automatic disbursement.']
                 ]);
             }
 
             $escrow = $transaction->escrow;
             if (!$escrow) {
-                throw new Exception('Data escrow tidak ditemukan untuk transaksi ini.');
+                throw new Exception('Escrow data not found for this transaction.');
             }
 
             $netAmount = $escrow->net_amount;
@@ -810,7 +923,7 @@ class TransactionService
             if ($response->failed()) {
                 $errorData = $response->json();
                 $errorMessage = $errorData['error_message'] ?? 'Midtrans Iris API returned status code ' . $response->status();
-                throw new Exception('Gagal melakukan transfer ke bank Helper via Midtrans: ' . $errorMessage);
+                throw new Exception('Failed to transfer to helper bank via Midtrans: ' . $errorMessage);
             }
 
             $resJson = $response->json();
@@ -820,7 +933,7 @@ class TransactionService
 
             // Update escrow release notes with disbursement details
             $escrow->update([
-                'release_notes' => trim($escrow->release_notes . "\nTransfer otomatis Midtrans Iris berhasil. Status: " . $payoutStatus . ", Ref: " . $referenceNo),
+                'release_notes' => trim($escrow->release_notes . "\nMidtrans Iris automatic transfer successful. Status: " . $payoutStatus . ", Ref: " . $referenceNo),
             ]);
 
             return $this->successPayload([
@@ -830,7 +943,7 @@ class TransactionService
                 'amount' => $netAmount,
                 'bank' => $bankAccount->bank_name,
                 'account_number' => $bankAccount->account_number,
-            ], 'Dana berhasil ditransfer ke rekening bank Helper.');
+            ], 'Funds successfully transferred to helper\'s bank account.');
 
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -858,7 +971,7 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
@@ -919,7 +1032,7 @@ class TransactionService
                 // Reload relations and return updated transaction
                 $transaction->load(['completionImages', 'helper', 'requester', 'offer']);
 
-                return $this->successPayload($transaction, 'Transaksi berhasil diperbarui.');
+                return $this->successPayload($transaction, 'Transaction updated successfully.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -949,21 +1062,21 @@ class TransactionService
 
                 if (!$transaction) {
                     throw ValidationException::withMessages([
-                        'transaction' => ['Transaksi tidak ditemukan.']
+                        'transaction' => ['Transaction not found.']
                     ]);
                 }
 
                 // Check authorization (only requester or helper can cancel)
                 if ($transaction->requester_id !== $userId && $transaction->helper_id !== $userId) {
                     throw ValidationException::withMessages([
-                        'authorization' => ['Anda tidak memiliki otorisasi untuk membatalkan transaksi ini.']
+                        'authorization' => ['You are not authorized to cancel this transaction.']
                     ]);
                 }
 
                 // Only allow cancellation if status is pending
                 if ($transaction->status !== 'pending') {
                     throw ValidationException::withMessages([
-                        'status' => ['Transaksi hanya dapat dibatalkan jika berstatus "pending". Status saat ini: ' . $transaction->status]
+                        'status' => ['Transaction can only be cancelled when status is "pending". Current status: ' . $transaction->status]
                     ]);
                 }
 
@@ -972,6 +1085,10 @@ class TransactionService
                     'status' => 'cancelled',
                 ]);
 
+                if ($transaction->offer) {
+                    $transaction->offer->update(['status' => 'completed']);
+                }
+
                 // Update payment status if exists
                 if ($transaction->payment) {
                     $transaction->payment->update([
@@ -979,13 +1096,122 @@ class TransactionService
                     ]);
                 }
 
-                return $this->successPayload($transaction, 'Transaksi berhasil dibatalkan.');
+                return $this->successPayload($transaction, 'Transaction cancelled successfully.');
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
         } catch (Exception $e) {
             return $this->errorPayload($e->getMessage(), [$e->getFile() . ':' . $e->getLine()], 500);
         }
+    }
+
+    /**
+     * Automatically handle all overdue transactions (helper melewati deadline).
+     * Sets status to pending_refund and creates a Refund record.
+     * Can be escalated to disputed if helper declines via respondToRefund().
+     *
+     * @return array Summary of processed transactions.
+     */
+    public function handleOverdueTransactions(): array
+    {
+        $overdueTransactions = Transaction::with(['escrow', 'payment', 'helper', 'requester', 'offer.post'])
+            ->where('status', 'on_progress')
+            ->where('deadline', '<', now())
+            ->get();
+
+        if ($overdueTransactions->isEmpty()) {
+            return $this->successPayload([], 'No overdue transactions found.');
+        }
+
+        $processed = [];
+        $failed    = [];
+
+        foreach ($overdueTransactions as $transaction) {
+            try {
+                DB::transaction(function () use ($transaction) {
+                    $escrow = $transaction->escrow;
+
+                    // Guard: escrow must be held for refund to proceed
+                    if (! $escrow || $escrow->status !== 'held') {
+                        throw new Exception("Escrow tidak valid untuk transaksi {$transaction->id}.");
+                    }
+
+                    // Guard: avoid duplicate pending refund
+                    $hasActiveRefund = Refund::where('transaction_id', $transaction->id)
+                        ->whereIn('status', ['pending', 'processing'])
+                        ->exists();
+
+                    if ($hasActiveRefund) {
+                        throw new Exception("Refund aktif sudah ada untuk transaksi {$transaction->id}.");
+                    }
+
+                    // Create automatic refund record
+                    Refund::create([
+                        'transaction_id'   => $transaction->id,
+                        'payment_id'       => $escrow->payment_id ?? $transaction->payment?->id,
+                        'user_id'          => $transaction->requester_id,
+                        'amount'           => $escrow->held_amount,
+                        'reason'           => 'Overdue: helper melewati deadline tanpa menyelesaikan pekerjaan.',
+                        'status'           => 'pending',
+                        'gateway_refund_id' => 'REF-OVERDUE-' . strtoupper(uniqid()),
+                    ]);
+
+                    // Move transaction to pending_refund
+                    $transaction->update(['status' => 'pending_refund']);
+                });
+
+                $processed[] = $transaction->id;
+
+                // Notify helper
+                if ($transaction->helper) {
+                    try {
+                        $projectTitle = $transaction->offer?->post?->title ?? 'Project';
+                        app(NotificationService::class)->sendToUser(
+                            $transaction->helper,
+                            'Transaction Overdue – Automatic Refund',
+                            'You have passed the deadline for "' . $projectTitle . '". An automatic refund request has been created. Please respond in the app.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'screen'         => 'transaction_detail',
+                            ],
+                            'transaction_overdue'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send overdue notification to helper: ' . $e->getMessage());
+                    }
+                }
+
+                // Notify requester
+                if ($transaction->requester) {
+                    try {
+                        $projectTitle = $transaction->offer?->post?->title ?? 'Project';
+                        app(NotificationService::class)->sendToUser(
+                            $transaction->requester,
+                            'Helper Missed the Deadline',
+                            'The helper on "' . $projectTitle . '" has missed the deadline. An automatic refund is being processed.',
+                            [
+                                'transaction_id' => (string) $transaction->id,
+                                'screen'         => 'transaction_detail',
+                            ],
+                            'transaction_overdue'
+                        );
+                    } catch (\Exception $e) {
+                        Log::error('Failed to send overdue notification to requester: ' . $e->getMessage());
+                    }
+                }
+
+            } catch (Exception $e) {
+                Log::error("handleOverdueTransactions: Gagal memproses transaksi {$transaction->id}: " . $e->getMessage());
+                $failed[] = ['id' => $transaction->id, 'reason' => $e->getMessage()];
+            }
+        }
+
+        return $this->successPayload([
+            'processed_count' => count($processed),
+            'failed_count'    => count($failed),
+            'processed_ids'   => $processed,
+            'failed'          => $failed,
+        ], 'Overdue processing complete.');
     }
 
     /**
@@ -1013,10 +1239,10 @@ class TransactionService
         ])->find($id);
 
         if (!$transaction) {
-            return $this->errorPayload('Transaksi tidak ditemukan.', [], 404);
+            return $this->errorPayload('Transaction not found.', [], 404);
         }
 
-        return $this->successPayload($transaction, 'Transaksi berhasil diambil.');
+        return $this->successPayload($transaction, 'Transaction retrieved successfully.');
     }
 }
 

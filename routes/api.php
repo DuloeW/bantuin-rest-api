@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BankAccount\BankAccountController;
 use App\Http\Controllers\Api\Category\CategoryController;
 use App\Http\Controllers\Api\Message\MessageController;
+use App\Http\Controllers\Api\Notification\NotificationController;
 use App\Http\Controllers\Api\Offer\OfferController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Post\PostController;
@@ -13,14 +14,17 @@ use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\UserSkillController;
 use App\Http\Controllers\Api\Withdrawal\WithdrawalController;
+use App\Http\Controllers\Api\Notification\DeviceTokenController;
+use App\Http\Controllers\Api\Notification\PushNotificationController;
 use Illuminate\Support\Facades\Route;
 
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
-// Midtrans Webhook — TANPA auth:sanctum (dipanggil oleh server Midtrans)
 Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
+
+Route::post('/notifications/test-direct', [PushNotificationController::class, 'testDirect']);
 
 Route::middleware('auth:sanctum')->group(function () {
 
@@ -43,6 +47,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/posts/{id}', [UserController::class, 'getUsersPosts']);
     Route::post('/users/{id}/report', [UserController::class, 'reportUser']);
     Route::patch('/users/accept-terms', [UserController::class, 'acceptTerms']);
+    Route::get('/users/has-bank-account/{userId}', [UserController::class, 'hasBankAccount']);
 
     Route::get('/categories', [CategoryController::class, 'getAll']);
     Route::post('/categories', [CategoryController::class, 'create']);
@@ -59,7 +64,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
     Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
     Route::get('/posts/{id}', [PostController::class, 'getById']);
+    Route::get('/posts/{id}/reviews', [PostController::class, 'getReviews']);
     Route::delete('/posts/{id}', [PostController::class, 'delete']);
+    Route::post('/posts/{id}/update', [PostController::class, 'update']);
     Route::post('/posts/{id}/report', [PostController::class, 'reportPost']);
 
     Route::get('/addresses/provinces', [AddressController::class, 'getProvinces']);
@@ -112,4 +119,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Withdrawals (Penarikan Dana Helper)
     Route::get('/withdrawals', [WithdrawalController::class, 'index']);
     Route::post('/withdrawals', [WithdrawalController::class, 'store']);
+
+    // Device Tokens (FCM Notifications)
+    Route::post('/device-tokens/register', [DeviceTokenController::class, 'register']);
+    Route::post('/device-tokens/unregister', [DeviceTokenController::class, 'unregister']);
+
+    // In-App Notifications
+    Route::get('/notifications', [NotificationController::class, 'getPending']);
+    Route::patch('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+
+    // Push Notifications (FCM)
+    Route::post('/notifications/send', [PushNotificationController::class, 'send']);
+    Route::post('/notifications/send-self', [PushNotificationController::class, 'sendToSelf']);
+    Route::post('/notifications/broadcast', [PushNotificationController::class, 'broadcast']);
 });

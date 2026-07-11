@@ -7,6 +7,10 @@ use App\Models\User;
 use App\Traits\ServiceResponse;
 use Exception;
 use Illuminate\Support\Facades\Log;
+use Kreait\Firebase\Messaging\CloudMessage;
+use Kreait\Firebase\Messaging\Notification as FirebaseNotification;
+use Kreait\Firebase\Messaging\AndroidConfig;
+use Kreait\Firebase\Messaging\ApnsConfig;
 
 class NotificationService
 {
@@ -27,45 +31,80 @@ class NotificationService
     public function sendToUser(User $user, string $title, string $body, array $data = [], string $type = 'general'): array
     {
         try {
+            // 1. Selalu simpan ke database terlebih dahulu (agar muncul di in-app notification page)
+            $notificationRecord = Notification::create([
+                'user_id' => $user->id,
+                'title'   => $title,
+                'body'    => $body,
+                'data'    => $data,
+                'type'    => $type,
+            ]);
+
+            // 2. Ambil token FCM untuk push notification
             $tokens = $user->deviceTokens()->pluck('device_token')->toArray();
 
             if (empty($tokens)) {
-                return $this->errorPayload('No active devices for user', [], 400);
+                return $this->successPayload([
+                    'id'        => $notificationRecord->id,
+                    'title'     => $title,
+                    'body'      => $body,
+                    'type'      => $type,
+                    'push_sent' => false,
+                ], 'Notification saved to DB (no active device tokens)', 200);
             }
 
-            $notificationData = array_merge($data, [
-                'title' => $title,
-                'body' => $body,
-                'type' => $type,
+            // Data payload harus semua string agar kompatibel dengan FCM
+            $fcmData = array_map('strval', array_merge($data, [
+                'type'      => $type,
                 'timestamp' => now()->toIso8601String(),
-            ]);
+            ]));
 
             if ($this->messaging) {
                 try {
-                    foreach ($tokens as $token) {
-                        $this->messaging->send([
-                            'token' => $token,
-                            'notification' => [
-                                'title' => $title,
-                                'body' => $body,
+                    $notification = FirebaseNotification::create($title, $body);
+
+                    $androidConfig = AndroidConfig::fromArray([
+                        'priority' => 'high',
+                        'notification' => [
+                            'channel_id' => 'high_importance_channel',
+                            'sound' => 'default',
+                        ],
+                    ]);
+
+                    $apnsConfig = ApnsConfig::fromArray([
+                        'headers' => [
+                            'apns-priority' => '10',
+                        ],
+                        'payload' => [
+                            'aps' => [
+                                'sound' => 'default',
+                                'badge' => 1,
                             ],
-                            'data' => $notificationData,
-                        ]);
+                        ],
+                    ]);
+
+                    foreach ($tokens as $token) {
+                        $message = CloudMessage::new()
+                            ->withToken($token)
+                            ->withNotification($notification)
+                            ->withAndroidConfig($androidConfig)
+                            ->withApnsConfig($apnsConfig)
+                            ->withData($fcmData);
+
+                        $this->messaging->send($message);
                     }
                 } catch (Exception $e) {
                     Log::error('Firebase send error: ' . $e->getMessage());
                 }
             }
 
-            Notification::create([
-                'user_id' => $user->id,
+            return $this->successPayload([
+                'id'    => $notificationRecord->id,
                 'title' => $title,
-                'body' => $body,
-                'data' => $data,
-                'type' => $type,
-            ]);
-
-            return $this->successPayload($notificationData, 'Notification sent to user', 200);
+                'body'  => $body,
+                'type'  => $type,
+                'push_sent' => true,
+            ], 'Notification sent to user', 200);
         } catch (Exception $e) {
             Log::error('sendToUser error: ' . $e->getMessage());
             return $this->errorPayload('Failed to send notification', [], 500);
@@ -178,5 +217,58 @@ class NotificationService
         ];
 
         return $this->sendToUser($review->reviewed, $title, $body, $data, 'review_received');
+    }
+
+    public function sendToToken(string $token, string $title, string $body, array $data = [], string $type = 'general'): array
+    {
+        try {
+            $fcmData = array_map('strval', array_merge($data, [
+                'type'      => $type,
+                'timestamp' => now()->toIso8601String(),
+            ]));
+
+            if ($this->messaging) {
+                $notification = FirebaseNotification::create($title, $body);
+
+                $androidConfig = AndroidConfig::fromArray([
+                    'priority' => 'high',
+                    'notification' => [
+                        'channel_id' => 'high_importance_channel',
+                        'sound' => 'default',
+                    ],
+                ]);
+
+                $apnsConfig = ApnsConfig::fromArray([
+                    'headers' => [
+                        'apns-priority' => '10',
+                    ],
+                    'payload' => [
+                        'aps' => [
+                            'sound' => 'default',
+                            'badge' => 1,
+                        ],
+                    ],
+                ]);
+
+                $message = CloudMessage::new()
+                    ->withToken($token)
+                    ->withNotification($notification)
+                    ->withAndroidConfig($androidConfig)
+                    ->withApnsConfig($apnsConfig)
+                    ->withData($fcmData);
+
+                $this->messaging->send($message);
+            }
+
+            return $this->successPayload([
+                'token' => $token,
+                'title' => $title,
+                'body'  => $body,
+                'type'  => $type,
+            ], 'Notification sent to token directly', 200);
+        } catch (Exception $e) {
+            Log::error('sendToToken error: ' . $e->getMessage());
+            return $this->errorPayload('Failed to send notification: ' . $e->getMessage(), [], 500);
+        }
     }
 }

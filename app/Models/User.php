@@ -84,6 +84,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasOne(BankAccount::class)->where('is_primary', true);
     }
 
+    public function deviceTokens()
+    {
+        return $this->hasMany(DeviceToken::class);
+    }
+
     public function transactionsAsRequester()
     {
         return $this->hasMany(Transaction::class, 'requester_id');

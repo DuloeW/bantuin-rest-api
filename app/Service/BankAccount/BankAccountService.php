@@ -22,7 +22,7 @@ class BankAccountService
         $validCodes = array_column(BankCodeEnum::cases(), 'value');
         if (! in_array($data['bank_code'], $validCodes)) {
             throw ValidationException::withMessages([
-                'bank_code' => ['Bank yang dipilih tidak didukung.'],
+                'bank_code' => ['The selected bank is not supported.'],
             ]);
         }
 
@@ -36,7 +36,7 @@ class BankAccountService
 
         if ($alreadyExists) {
             throw ValidationException::withMessages([
-                'account_number' => ['Rekening ini sudah terdaftar.'],
+                'account_number' => ['This bank account is already registered.'],
             ]);
         }
 
@@ -59,11 +59,11 @@ class BankAccountService
                 'account_number' => $data['account_number'],
                 'account_name' => $data['account_name'],
                 'is_primary' => $isPrimary,
-                'is_verified' => false, // belum diverifikasi
+                'is_verified' => false, // not yet verified
             ]);
         });
 
-        return $this->successPayload($bankAccount, 'Rekening bank berhasil ditambahkan.', 201);
+        return $this->successPayload($bankAccount, 'Bank account added successfully.', 201);
     }
 
     /**
@@ -90,7 +90,7 @@ class BankAccountService
 
         if (! $bankAccount) {
             throw ValidationException::withMessages([
-                'bank_account_id' => ['Rekening tidak ditemukan.'],
+                'bank_account_id' => ['Bank account not found.'],
             ]);
         }
 
@@ -104,7 +104,7 @@ class BankAccountService
             $bankAccount->update(['is_primary' => true]);
         });
 
-        return $this->successPayload($bankAccount->fresh(), 'Rekening utama berhasil diperbarui.');
+        return $this->successPayload($bankAccount->fresh(), 'Primary bank account updated successfully.');
     }
 
     /**
@@ -118,7 +118,7 @@ class BankAccountService
 
         if (! $bankAccount) {
             throw ValidationException::withMessages([
-                'bank_account_id' => ['Rekening tidak ditemukan.'],
+                'bank_account_id' => ['Bank account not found.'],
             ]);
         }
 
@@ -136,7 +136,7 @@ class BankAccountService
             }
         }
 
-        return $this->successPayload(null, 'Rekening bank berhasil dihapus.');
+        return $this->successPayload(null, 'Bank account deleted successfully.');
     }
 
     /**
@@ -144,6 +144,6 @@ class BankAccountService
      */
     public function supportedBanks(): array
     {
-        return $this->successPayload(BankCodeEnum::list(), 'Daftar bank yang didukung.');
+        return $this->successPayload(BankCodeEnum::list(), 'List of supported banks.');
     }
 }

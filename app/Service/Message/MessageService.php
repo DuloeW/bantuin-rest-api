@@ -6,9 +6,11 @@ use App\Events\MessageSent;
 use App\Models\Message;
 use App\Models\Offer;
 use App\Models\User;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Log;
 
 class MessageService
 {
@@ -30,6 +32,38 @@ class MessageService
             ]);
 
             broadcast(new MessageSent($message))->toOthers();
+
+            $receiver = User::find($receiverId);
+            if ($receiver) {
+                try {
+                    $projectTitle = $offer->post->title ?? 'Project';
+                    $isAgreement = ($message->type === 'agreement');
+
+                    $title = $isAgreement
+                        ? 'Agreement Pending Approval'
+                        : 'New Message from ' . $user->first_name;
+
+                    $body = $isAgreement
+                        ? 'The final agreement for "' . $projectTitle . '" is waiting for your approval. Please review the terms.'
+                        : substr($message->content, 0, 50) . '...';
+
+                    app(NotificationService::class)->sendToUser(
+                        $receiver,
+                        $title,
+                        $body,
+                        [
+                            'post_id'  => (string) $offer->post_id,
+                            'offer_id' => (string) $offer->id,
+                            'screen'   => 'offer_list',
+                        ],
+                        $isAgreement ? 'pending_approval' : 'new_message'
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to send message notification: ' . $e->getMessage());
+                }
+            }
+
+            
 
             return $this->successPayload($message->load('sender'), 'message sent successfully', 201);
         });
