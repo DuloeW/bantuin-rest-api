@@ -67,4 +67,24 @@ class NotificationController extends Controller
             );
         }
     }
+
+    public function markAllAsRead(Request $request)
+    {
+        try {
+            Notification::where('user_id', $request->user()->id)
+                ->where('is_read', false)
+                ->update(['is_read' => true]);
+
+            return response()->json(
+                $this->successPayload([], 'All notifications marked as read', 200),
+                200
+            );
+        } catch (\Exception $e) {
+            Log::error('markAllAsRead error: ' . $e->getMessage());
+            return response()->json(
+                $this->errorPayload('Failed to mark all as read', [], 500),
+                500
+            );
+        }
+    }
 }

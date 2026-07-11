@@ -18,8 +18,8 @@ class HireHelperService
     {
         $user = User::find($requesterId);
 
-        if (!$user->email_verified_at) {
-            return $this->errorPayload('Email must be verified to book a helper service.', null, 403);
+        if (!$user->is_verified) {
+            return $this->errorPayload('Must be verified to book a helper service.', null, 403);
         }
 
         if ($post->type !== 'offer') {

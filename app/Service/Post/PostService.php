@@ -235,7 +235,7 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            if (!$user->email_verified_at) {
+            if (!$user->is_verified) {
                 return $this->errorPayload('Must be verified to post requests', null, 403);
             }   
 
@@ -277,7 +277,7 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            if (!$user->email_verified_at) {
+            if (!$user->is_verified) {
                 return $this->errorPayload('Must be verified to post offers', null, 403);
             }
 

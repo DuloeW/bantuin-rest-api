@@ -24,8 +24,8 @@ class OfferHelpService
     {
         $user = User::find($helperId);
 
-        if (!$user->email_verified_at) {
-            return $this->errorPayload('Email must be verified to apply for this job.', null, 403);
+        if (!$user->is_verified) {
+            return $this->errorPayload('Must be verified to apply for this job.', null, 403);
         }
 
         if ($post->type !== 'request') {

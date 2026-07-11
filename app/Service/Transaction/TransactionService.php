@@ -302,6 +302,13 @@ class TransactionService
                     ]);
                 }
 
+                // Block revision if a refund is already pending
+                if ($transaction->status === 'pending_refund') {
+                    throw ValidationException::withMessages([
+                        'status' => ['A refund request is already in progress for this transaction. You cannot request a revision at this time.']
+                    ]);
+                }
+
                 if ($transaction->completion_notes === null) {
                     throw ValidationException::withMessages([
                         'work' => ['The helper has not submitted proof of work yet, revision cannot be requested.']
@@ -414,6 +421,21 @@ class TransactionService
                 }
 
                 $action = $data['action'];
+
+                if ($action === 'accepted') {
+                    // Helper accept revision → status transaksi menjadi 'revision'
+                    $revision->update([
+                        'revision_deadline' => $data['revision_deadline'] ?? null,
+                    ]);
+
+                    $transaction->update([
+                        'status' => 'revision',
+                    ]);
+
+                    $transaction->load(['completionImages', 'revisions', 'revisions.images']);
+
+                    return $this->successPayload($transaction, 'Revision accepted. Please re-do the work before the deadline.');
+                }
 
                 if ($action === 'fixed') {
                     // Update revision status
@@ -529,6 +551,14 @@ class TransactionService
                 if ($transaction->requester_id !== $requesterId) {
                     throw ValidationException::withMessages([
                         'requester' => ['Only the requester can file a refund for this transaction.']
+                    ]);
+                }
+
+                // Block refund if work is still in progress or under revision
+                $blockedStatuses = ['on_progress', 'revision', 'pending_revision'];
+                if (in_array($transaction->status, $blockedStatuses)) {
+                    throw ValidationException::withMessages([
+                        'status' => ['Refund cannot be requested while the transaction is still in progress or under revision. Current status: ' . $transaction->status]
                     ]);
                 }
 

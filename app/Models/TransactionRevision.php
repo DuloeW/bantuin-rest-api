@@ -15,6 +15,7 @@ class TransactionRevision extends Model
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'revision_deadline' => 'datetime',
     ];
 
     public function transaction(): BelongsTo
