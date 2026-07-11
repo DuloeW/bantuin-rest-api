@@ -425,45 +425,45 @@ class TransactionService
                 if ($action === 'accepted') {
                     // Helper accept revision → status transaksi menjadi 'revision'
                     $revision->update([
-                        'revision_deadline' => $data['revision_deadline'] ?? null,
+                        'revision_deadline' => now()->addDays(2),
                     ]);
 
                     $transaction->update([
                         'status' => 'revision',
                     ]);
 
-                    $transaction->load(['completionImages', 'revisions', 'revisions.images']);
+                    $transaction->load(['completionImages', 'revisions', 'revisions.images', 'revisions.completionImages']);
 
                     return $this->successPayload($transaction, 'Revision accepted. Please re-do the work before the deadline.');
                 }
 
                 if ($action === 'fixed') {
-                    // Update revision status
+                    // Update revision status and completion notes
                     $revision->update([
                         'status' => 'fixed',
                         'completed_at' => now(),
+                        'completion_notes' => $data['completion_notes'] ?? null,
                     ]);
 
-                    // Update transaction completion notes and set status to pending_approval
+                    // Update transaction status to pending_approval, but DO NOT overwrite completion_notes
                     $transaction->update([
                         'status' => 'pending_approval',
-                        'completion_notes' => $data['completion_notes'],
                     ]);
 
-                    // Store uploaded proof images
+                    // Store uploaded proof images into the revision
                     foreach ($uploadedImages as $imageFile) {
                         $path = $imageFile->store('transactions/completion', 'public');
                         $uploadedPaths[] = $path;
 
-                        $transaction->images()->create([
+                        $revision->completionImages()->create([
                             'url' => $path,
                             'file_name' => $imageFile->getClientOriginalName(),
                             'file_type' => $imageFile->getClientMimeType(),
-                            'type' => 'completion',
+                            'type' => 'tr-completion',
                         ]);
                     }
 
-                    $transaction->load(['completionImages', 'revisions', 'revisions.images']);
+                    $transaction->load(['completionImages', 'revisions', 'revisions.images', 'revisions.completionImages']);
 
                     AutoApproveTransaction::dispatch($transaction->id)
                         ->delay(now()->addHours(24))
@@ -1264,6 +1264,7 @@ class TransactionService
             'escrow',
             'revisions',
             'revisions.images',
+            'revisions.completionImages',
             'reviews',
             'refunds',
         ])->find($id);

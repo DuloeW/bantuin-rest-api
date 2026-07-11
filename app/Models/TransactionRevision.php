@@ -27,4 +27,9 @@ class TransactionRevision extends Model
     {
         return $this->morphMany(Image::class, 'imageable')->where('type', 'tr-revision');
     }
+
+    public function completionImages(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('type', 'tr-completion');
+    }
 }

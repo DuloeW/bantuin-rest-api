@@ -113,7 +113,6 @@ class TransactionController extends Controller
     {
         $data = $request->validate([
             'action'           => 'required|string|in:accepted,fixed,rejected',
-            'revision_deadline' => 'required_if:action,accepted|nullable|date|after:now',
             'completion_notes' => 'required_if:action,fixed|nullable|string|max:2000',
             'completion_images' => 'required_if:action,fixed|nullable|array|min:1',
             'completion_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
