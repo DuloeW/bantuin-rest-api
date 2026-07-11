@@ -15,6 +15,7 @@ class TransactionRevision extends Model
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'revision_deadline' => 'datetime',
     ];
 
     public function transaction(): BelongsTo
@@ -25,5 +26,10 @@ class TransactionRevision extends Model
     public function images(): MorphMany
     {
         return $this->morphMany(Image::class, 'imageable')->where('type', 'tr-revision');
+    }
+
+    public function completionImages(): MorphMany
+    {
+        return $this->morphMany(Image::class, 'imageable')->where('type', 'tr-completion');
     }
 }

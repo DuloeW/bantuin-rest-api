@@ -8,33 +8,42 @@ use App\Enum\OpenCloseEnum;
 use App\Models\BankAccount;
 use App\Models\Offer;
 use App\Models\Post;
+use App\Models\User;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Log;
 
 class OfferHelpService
 {
     use ServiceResponse;
+
     public function applyForJob(Post $post, array $data, string $helperId)
-    {   
-        if($post->type !== 'request') {
+    {
+        $user = User::find($helperId);
+
+        if (!$user->is_verified) {
+            return $this->errorPayload('Must be verified to apply for this job.', null, 403);
+        }
+
+        if ($post->type !== 'request') {
             throw ValidationException::withMessages([
-                'post_id' => ['You can only apply for a job on a request post.']
+                'post_id' => ['You can only apply for a job on a request post.'],
             ]);
         }
 
-        if($post->user_id === $helperId) {
+        if ($post->user_id === $helperId) {
             throw ValidationException::withMessages([
-                'post_id' => ['You cannot apply for a job on your own post.']
+                'post_id' => ['You cannot apply for a job on your own post.'],
             ]);
         }
 
-        // Wajib punya rekening bank untuk menerima pembayaran escrow
         $hasBankAccount = BankAccount::where('user_id', $helperId)->exists();
-        if (!$hasBankAccount) {
+        if (! $hasBankAccount) {
             throw ValidationException::withMessages([
-                'bank_account' => ['Kamu harus mendaftarkan rekening bank terlebih dahulu sebelum melamar pekerjaan.']
+                'bank_account' => ['You must register a bank account before applying for a job.'],
             ]);
         }
 
@@ -42,26 +51,45 @@ class OfferHelpService
             ->where('helper_id', $helperId)
             ->exists();
 
-        if($hasApplied) {   
+        if ($hasApplied) {
             throw ValidationException::withMessages([
-                'post_id' => ['You have already applied for this job.']
+                'post_id' => ['You have already applied for this job.'],
             ]);
         }
 
         $minPrice = $post->requestDetail->min_price;
 
-        if($minPrice !== null && $data['offered_price'] < $minPrice) {
+        if ($minPrice !== null && $data['offered_price'] < $minPrice) {
             throw ValidationException::withMessages([
-                'offered_price' => ['The offered price must be at least ' . $minPrice . '.']
+                'offered_price' => ['The offered price must be at least '.$minPrice.'.'],
             ]);
         }
 
-        $offer= $post->offers()->create([
+        $offer = $post->offers()->create([
             'helper_id' => $helperId,
             'requester_id' => $post->user_id,
             'initiated_by' => $helperId,
             'offered_price' => $data['offered_price'],
         ]);
+
+        $postOwner = User::find($post->user_id);
+        if ($postOwner) {
+            try {
+                app(NotificationService::class)->sendToUser(
+                    $postOwner,
+                    'New Offer Received!',
+                    $offer->helper->first_name.' has sent an offer for your request "'.$post->title.'". Check it out now!',
+                    [
+                        'post_id' => (string) $post->id,
+                        'offer_id' => (string) $offer->id,
+                        'screen' => 'offer_list',
+                    ],
+                    'new_offer'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send new offer notification: '.$e->getMessage());
+            }
+        }
 
         return $this->successPayload($offer, 'Offer created successfully.');
     }
@@ -76,27 +104,27 @@ class OfferHelpService
         // Ensure the requester (actor) owns the post
         $post = $offer->post;
 
-        if (!$post) {
+        if (! $post) {
             throw ValidationException::withMessages([
-                'offer' => ['Related post not found.']
+                'offer' => ['Related post not found.'],
             ]);
         }
 
         if ($post->user_id !== $helperId) {
             throw ValidationException::withMessages([
-                'offer' => ['Only the post owner can accept an offer.']
+                'offer' => ['Only the post owner can accept an offer.'],
             ]);
         }
 
-        if (!in_array($post->type, ['request', 'offer'])) {
+        if (! in_array($post->type, ['request', 'offer'])) {
             throw ValidationException::withMessages([
-                'post_id' => ['Invalid post type.']
+                'post_id' => ['Invalid post type.'],
             ]);
         }
 
         if ($offer->post_id !== $post->id) {
             throw ValidationException::withMessages([
-                'offer' => ['Offer does not belong to the given post.']
+                'offer' => ['Offer does not belong to the given post.'],
             ]);
         }
 
@@ -106,29 +134,29 @@ class OfferHelpService
             }
 
             throw ValidationException::withMessages([
-                'offer' => ['Only pending offers can be accepted.']
+                'offer' => ['Only pending offers can be accepted.'],
             ]);
         }
 
         // Additional business checks for request posts
         if ($post->type === 'request') {
             $requestDetail = $post->requestDetail;
-            if (!$requestDetail) {
+            if (! $requestDetail) {
                 throw ValidationException::withMessages([
-                    'post_id' => ['Request details not found for this post.']
+                    'post_id' => ['Request details not found for this post.'],
                 ]);
             }
 
             if (isset($requestDetail->deadline) && Carbon::now()->greaterThan($requestDetail->deadline)) {
                 throw ValidationException::withMessages([
-                    'post_id' => ['The request deadline has passed.']
+                    'post_id' => ['The request deadline has passed.'],
                 ]);
             }
 
             $minPrice = $requestDetail->min_price;
             if ($minPrice !== null && $offer->offered_price < $minPrice) {
                 throw ValidationException::withMessages([
-                    'offered_price' => ['The offered price is lower than the minimum allowed.']
+                    'offered_price' => ['The offered price is lower than the minimum allowed.'],
                 ]);
             }
         }
@@ -137,47 +165,49 @@ class OfferHelpService
         DB::transaction(function () use ($post, $offer) {
             $lockedPost = Post::whereKey($post->id)->lockForUpdate()->first();
 
-            if (!$lockedPost) {
+            if (! $lockedPost) {
                 throw ValidationException::withMessages([
-                    'post_id' => ['Post not found.']
+                    'post_id' => ['Post not found.'],
                 ]);
             }
 
             $lockedOffer = Offer::whereKey($offer->id)->lockForUpdate()->first();
 
-            if (!$lockedOffer) {
+            if (! $lockedOffer) {
                 throw ValidationException::withMessages([
-                    'offer' => ['Offer not found.']
+                    'offer' => ['Offer not found.'],
                 ]);
             }
 
-            // Ensure no other offer already accepted
-            $alreadyAccepted = $lockedPost->offers()
-                ->where('status', OfferingStatusEnum::ACCEPTED->value)
-                ->exists();
-            if ($alreadyAccepted) {
-                throw ValidationException::withMessages([
-                    'offer' => ['Another offer has already been accepted for this post.']
-                ]);
-            }
+            if (! $lockedPost->is_multiple) {
+                // For single-use posts: ensure no other offer is already accepted
+                $alreadyAccepted = $lockedPost->offers()
+                    ->where('status', OfferingStatusEnum::ACCEPTED->value)
+                    ->exists();
+                if ($alreadyAccepted) {
+                    throw ValidationException::withMessages([
+                        'offer' => ['Another offer has already been accepted for this post.'],
+                    ]);
+                }
 
-            // Reject other offers
-            $lockedPost->offers()
-                ->where('id', '!=', $lockedOffer->id)
-                ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+                // Reject all other offers
+                $lockedPost->offers()
+                    ->where('id', '!=', $lockedOffer->id)
+                    ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+
+                // Close the post
+                if ($lockedPost->requestDetail) {
+                    $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+                }
+                if ($lockedPost->offerDetail) {
+                    $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
+                }
+            }
 
             // Accept selected offer
             $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
-
-            // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
-            if ($lockedPost->requestDetail) {
-                $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
-            }
-            if ($lockedPost->offerDetail) {
-                $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
-            }
         });
 
         return $this->successPayload($offer->fresh(), 'Offer accepted successfully.');
-    } 
+    }
 }

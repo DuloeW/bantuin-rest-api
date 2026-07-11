@@ -112,12 +112,12 @@ class TransactionController extends Controller
     public function respondRevision(Request $request, string $revisionId): JsonResponse
     {
         $data = $request->validate([
-            'action' => 'required|string|in:fixed,rejected',
+            'action'           => 'required|string|in:accepted,fixed,rejected',
             'completion_notes' => 'required_if:action,fixed|nullable|string|max:2000',
             'completion_images' => 'required_if:action,fixed|nullable|array|min:1',
             'completion_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-            'dispute_reason' => 'required_if:action,rejected|nullable|string|max:2000',
-            'dispute_images' => 'required_if:action,rejected|nullable|array|min:1',
+            'dispute_reason'   => 'required_if:action,rejected|nullable|string|max:2000',
+            'dispute_images'   => 'required_if:action,rejected|nullable|array|min:1',
             'dispute_images.*' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
         ]);
 

@@ -4,12 +4,13 @@ namespace App\Service\Post;
 
 use App\Enum\TypePostEnum;
 use App\Models\Post;
+use App\Models\ReportPost;
+use App\Models\Review;
+use App\Models\Transaction;
 use App\Models\User;
 use App\Traits\ServiceResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use App\Models\ReportPost;
-use App\Models\Image;
+use Illuminate\Support\Facades\Storage;
 
 class PostService
 {
@@ -32,26 +33,38 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                    ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
-            // 'users.ktpPhoto',
+
             'requestDetail' => function ($query) {
-                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'open'); 
             },
             'requestDetail.province:id,name',
             'requestDetail.city:id,name',
             'requestDetail.district:id,name',
             'requestDetail.village:id,name',
+
             'offerDetail' => function ($query) {
-                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'active'); 
             },
             'offerDetail.province:id,name',
             'offerDetail.city:id,name',
             'offerDetail.district:id,name',
             'offerDetail.village:id,name',
             'images',
-        ])->get();
+        ])
+        // 2. Filter Tabel Utama (Posts) menggunakan whereHas
+            ->where(function ($query) {
+                $query->whereHas('requestDetail', function ($q) {
+                    $q->where('status', 'open');
+                })->orWhereHas('offerDetail', function ($q) {
+                    $q->where('status', 'active');
+                });
+            })
+            ->get();
 
         return $this->successPayload($posts, 'posts retrieved successfully');
     }
@@ -77,7 +90,7 @@ class PostService
                     'category',
                     'users' => function ($query) {
                         $query->withCount(['helpedTransactions as completed_jobs_count'])
-                              ->withAvg('reviewReceived as avg_rating', 'rating');
+                            ->withAvg('reviewReceived as avg_rating', 'rating');
                     },
                     'users.photoProfile',
                     'images',
@@ -101,7 +114,7 @@ class PostService
                     'category',
                     'users' => function ($query) {
                         $query->withCount(['helpedTransactions as completed_jobs_count'])
-                              ->withAvg('reviewReceived as avg_rating', 'rating');
+                            ->withAvg('reviewReceived as avg_rating', 'rating');
                     },
                     'users.photoProfile',
                     'images',
@@ -134,13 +147,13 @@ class PostService
                 'category',
                 'users' => function ($query) {
                     $query->withCount(['helpedTransactions as completed_jobs_count'])
-                          ->withAvg('reviewReceived as avg_rating', 'rating');
+                        ->withAvg('reviewReceived as avg_rating', 'rating');
                 },
                 'users.photoProfile',
                 'images',
                 'offers' => function ($q) use ($userId) {
                     $q->where('helper_id', $userId)
-                      ->orWhere('requester_id', $userId);
+                        ->orWhere('requester_id', $userId);
                 },
                 'requestDetail' => function ($q) {
                     $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
@@ -171,7 +184,7 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                    ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
             // 'users.ktpPhoto',
@@ -195,7 +208,7 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                    ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
             // 'users.ktpPhoto',
@@ -212,7 +225,6 @@ class PostService
         return $this->successPayload($posts, 'posts with offer details retrieved successfully');
     }
 
-
     // TODO isikan validasi user sudah verified atau belum, jika belum maka tidak bisa membuat post
     public function createRequestPost(array $data, array $uploadedImages)
     {
@@ -223,9 +235,9 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            // if (!$user->email_verified_at) {
-            //     return $this->errorPayload('user email is not verified', null, 403);
-            // }
+            if (!$user->is_verified) {
+                return $this->errorPayload('Must be verified to post requests', null, 403);
+            }   
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::REQUEST->value)
                 ->whereHas('requestDetail', function ($query) {
@@ -265,9 +277,9 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            // if (!$user->email_verified_at) {
-            //     return $this->errorPayload('user email is not verified', null, 403);
-            // }
+            if (!$user->is_verified) {
+                return $this->errorPayload('Must be verified to post offers', null, 403);
+            }
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::OFFER->value)
                 ->whereHas('offerDetail', function ($query) {
@@ -305,13 +317,72 @@ class PostService
         return $this->successPayload(null, 'post deleted successfully');
     }
 
+    public function updatePost(string $id, array $data, array $uploadedImages = [])
+    {
+        return DB::transaction(function () use ($id, $data, $uploadedImages) {
+            $userId = auth('sanctum')->id();
+
+            $post = Post::with(['images', 'offerDetail', 'requestDetail'])->find($id);
+
+            if (! $post) {
+                return $this->errorPayload('post not found', [], 404);
+            }
+
+            if ($post->user_id !== $userId) {
+                return $this->errorPayload('unauthorized: you do not own this post', [], 403);
+            }
+
+            $deleteImageIds = $data['delete_image_ids'] ?? [];
+            $existingCount = $post->images->count();
+            $toDeleteCount = count($deleteImageIds);
+            $toAddCount = count($uploadedImages);
+            $finalCount = ($existingCount - $toDeleteCount) + $toAddCount;
+
+            if ($finalCount > 5) {
+                return $this->errorPayload(
+                    "Total images cannot exceed 5. Currently: {$existingCount}, deleting: {$toDeleteCount}, adding: {$toAddCount}.",
+                    [],
+                    422
+                );
+            }
+
+            if ($finalCount < 0) {
+                return $this->errorPayload('delete_image_ids contains more images than the post has.', [], 422);
+            }
+
+            if (! empty($deleteImageIds)) {
+                $imagesToDelete = $post->images()->whereIn('id', $deleteImageIds)->get();
+                foreach ($imagesToDelete as $img) {
+                    Storage::disk('public')->delete($img->url);
+                    $img->delete();
+                }
+            }
+
+            $post->update(array_filter([
+                'title' => $data['title'] ?? null,
+                'description' => $data['description'] ?? null,
+                'category_id' => $data['category_id'] ?? null,
+            ], fn ($v) => $v !== null));
+
+            $this->uploadImages($uploadedImages, $post);
+
+            if ($post->type === 'offer') {
+                $post = $this->offerPostService->updateOfferPostDetails($post, $data);
+            } elseif ($post->type === 'request') {
+                $post = $this->requestPostService->updateRequestPostDetails($post, $data);
+            }
+
+            return $this->successPayload($post, 'post updated successfully');
+        });
+    }
+
     public function searchPost(array $filters)
     {
         $query = Post::with([
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                    ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
             'requestDetail' => function ($q) {
@@ -332,16 +403,16 @@ class PostService
         ]);
 
         // Search by keyword (title or description)
-        if (!empty($filters['query'])) {
+        if (! empty($filters['query'])) {
             $keyword = $filters['query'];
             $query->where(function ($q) use ($keyword) {
                 $q->where('title', 'like', "%{$keyword}%")
-                  ->orWhere('description', 'like', "%{$keyword}%");
+                    ->orWhere('description', 'like', "%{$keyword}%");
             });
         }
 
         // Filter by location (province, city, district, village)
-        if (!empty($filters['province_id'])) {
+        if (! empty($filters['province_id'])) {
             $provinceVal = $filters['province_id'];
             $query->where(function ($q) use ($provinceVal) {
                 $q->whereHas('requestDetail', function ($sq) use ($provinceVal) {
@@ -364,7 +435,7 @@ class PostService
             });
         }
 
-        if (!empty($filters['city_id'])) {
+        if (! empty($filters['city_id'])) {
             $cityVal = $filters['city_id'];
             $query->where(function ($q) use ($cityVal) {
                 $q->whereHas('requestDetail', function ($sq) use ($cityVal) {
@@ -387,7 +458,7 @@ class PostService
             });
         }
 
-        if (!empty($filters['district_id'])) {
+        if (! empty($filters['district_id'])) {
             $districtVal = $filters['district_id'];
             $query->where(function ($q) use ($districtVal) {
                 $q->whereHas('requestDetail', function ($sq) use ($districtVal) {
@@ -410,7 +481,7 @@ class PostService
             });
         }
 
-        if (!empty($filters['village_id'])) {
+        if (! empty($filters['village_id'])) {
             $villageVal = $filters['village_id'];
             $query->where(function ($q) use ($villageVal) {
                 $q->whereHas('requestDetail', function ($sq) use ($villageVal) {
@@ -455,12 +526,12 @@ class PostService
         }
 
         // Filter by post type (request or service/offer)
-        if (!empty($filters['type'])) {
+        if (! empty($filters['type'])) {
             $query->where('type', $filters['type']);
         }
 
         // Filter by category
-        if (!empty($filters['category_id'])) {
+        if (! empty($filters['category_id'])) {
             $catVal = $filters['category_id'];
             if (preg_match('/^[a-f\d]{8}(-[a-f\d]{4}){3}-[a-f\d]{12}$/i', $catVal)) {
                 $query->where('category_id', $catVal);
@@ -486,7 +557,7 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating');
+                    ->withAvg('reviewReceived as avg_rating', 'rating');
             },
             'users.photoProfile',
             'requestDetail' => function ($q) {
@@ -505,26 +576,27 @@ class PostService
             'offerDetail.village:id,name',
             'images',
         ])
-        ->select('posts.*')
-        ->leftJoin('request_posts', 'request_posts.post_id', '=', 'posts.id')
-        ->leftJoin('service_posts', 'service_posts.post_id', '=', 'posts.id')
-        ->selectRaw("
+            ->select('posts.*')
+            ->leftJoin('request_posts', 'request_posts.post_id', '=', 'posts.id')
+            ->leftJoin('service_posts', 'service_posts.post_id', '=', 'posts.id')
+            ->selectRaw('
             ST_Distance_Sphere(
                 COALESCE(request_posts.location, service_posts.location),
                 ST_GeomFromText(?, 4326)
             ) as distance_meters
-        ", ["POINT($latitude $longitude)"])
-        ->where(function($q) {
-            $q->whereNotNull('request_posts.location')
-              ->orWhereNotNull('service_posts.location');
-        })
-        ->having('distance_meters', '<=', $maxDistanceKm * 1000)
-        ->orderBy('distance_meters', 'asc')
-        ->get();
+        ', ["POINT($latitude $longitude)"])
+            ->where(function ($q) {
+                $q->whereNotNull('request_posts.location')
+                    ->orWhereNotNull('service_posts.location');
+            })
+            ->having('distance_meters', '<=', $maxDistanceKm * 1000)
+            ->orderBy('distance_meters', 'asc')
+            ->get();
 
         // Tambahkan field distance (dalam km) ke setiap post
         $posts = $posts->map(function ($post) {
             $post->distance = round($post->distance_meters / 1000, 2);
+
             return $post;
         });
 
@@ -537,10 +609,10 @@ class PostService
             'category',
             'users' => function ($query) {
                 $query->withCount(['helpedTransactions as completed_jobs_count'])
-                      ->withAvg('reviewReceived as avg_rating', 'rating')
-                      ->with(['reviewReceived' => function ($q) {
-                          $q->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images'])->latest();
-                      }]);
+                    ->withAvg('reviewReceived as avg_rating', 'rating')
+                    ->with(['reviewReceived' => function ($q) {
+                        $q->with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images'])->latest();
+                    }]);
             },
             'users.photoProfile',
             'requestDetail' => function ($query) {
@@ -560,12 +632,18 @@ class PostService
             'images',
         ])->find($id);
 
-        if (!$post) {
+        if (! $post) {
             return $this->errorPayload('post not found', [], 404);
         }
 
-        // Set reviews to user's overall reviews
-        $reviews = $post->users && $post->users->reviewReceived ? $post->users->reviewReceived : collect();
+        // Set reviews specifically for THIS post (from transactions belonging to this post)
+        $reviews = Review::with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images'])
+            ->whereHas('transaction.offer', function ($query) use ($id) {
+                $query->where('post_id', $id);
+            })
+            ->latest()
+            ->get();
+
         $post->setRelation('reviews', $reviews);
 
         // Hide reviewReceived relation from users inside the response to keep it clean
@@ -574,6 +652,35 @@ class PostService
         }
 
         return $this->successPayload($post, 'post retrieved successfully');
+    }
+
+    public function getPostReviews(string $id)
+    {
+        $post = Post::find($id);
+
+        if (! $post) {
+            return $this->errorPayload('post not found', [], 404);
+        }
+
+        $reviews = Review::with(['reviewer.photoProfile', 'reviewed.photoProfile', 'images'])
+            ->whereHas('transaction.offer', function ($query) use ($id) {
+                $query->where('post_id', $id);
+            })
+            ->latest()
+            ->get();
+
+        $avgRating = round((float) ($reviews->avg('rating') ?? 0), 1);
+        $completedJobsCount = Transaction::whereHas('offer', fn ($q) => $q->where('post_id', $id))
+            ->where('status', 'completed')
+            ->count();
+
+        return $this->successPayload([
+            'post_id' => $id,
+            'avg_rating' => $avgRating,
+            'total_reviews' => $reviews->count(),
+            'completed_jobs_count' => $completedJobsCount,
+            'reviews' => $reviews,
+        ], 'post reviews retrieved successfully');
     }
 
     private function uploadImages(array $uploadedImages, Post $post)
@@ -592,7 +699,7 @@ class PostService
     public function reportPost(string $postId, string $reporterId, array $data, array $uploadedImages = [])
     {
         $post = Post::find($postId);
-        if (!$post) {
+        if (! $post) {
             return $this->errorPayload('post not found', [], 404);
         }
 

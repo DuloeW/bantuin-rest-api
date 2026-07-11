@@ -23,6 +23,17 @@ class Transaction extends Model
         'finished_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::updated(function (Transaction $transaction) {
+            if ($transaction->wasChanged('status') && in_array($transaction->status, ['cancelled', 'disputed'])) {
+                if ($transaction->offer && $transaction->offer->status !== 'completed') {
+                    $transaction->offer->update(['status' => 'completed']);
+                }
+            }
+        });
+    }
+
     public function reportTransaction(): HasOne
     {
         return $this->hasOne(ReportTransaction::class, 'transaction_id');

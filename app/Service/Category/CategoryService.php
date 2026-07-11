@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Service\Category;
 
 use App\Models\Category;
@@ -11,7 +12,9 @@ class CategoryService
 
     public function getAllCategories()
     {
-        $categories = Category::all();
+        $categories = $categories = Category::orderByRaw("CASE WHEN title = 'Other' THEN 1 ELSE 0 END")
+            ->orderBy('title')
+            ->get();
 
         return $this->successPayload($categories, 'categories retrieved successfully');
     }
@@ -20,7 +23,7 @@ class CategoryService
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return $this->errorPayload('category not found', [], 404);
         }
 
@@ -31,7 +34,7 @@ class CategoryService
     {
         $category = Category::where('slug', $slug)->first();
 
-        if (!$category) {
+        if (! $category) {
             return $this->errorPayload('category not found', [], 404);
         }
 
@@ -43,7 +46,7 @@ class CategoryService
         $category = Category::create([
             'title' => $data['title'],
             'slug' => Str::slug($data['title']),
-        ]); 
+        ]);
 
         return $this->successPayload($category, 'category created successfully', 201);
     }
@@ -52,7 +55,7 @@ class CategoryService
     {
         $category = Category::find($id);
 
-        if (!$category) {
+        if (! $category) {
             return $this->errorPayload('category not found', [], 404);
         }
 

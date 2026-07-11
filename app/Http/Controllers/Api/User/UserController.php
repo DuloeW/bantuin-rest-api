@@ -2,17 +2,17 @@
 namespace App\Http\Controllers\Api\User;
 
 use App\Http\Controllers\Controller;
+use App\Service\Post\PostService;
 use App\Service\User\UserService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
-//TODO menentukan flow template response
 class UserController extends Controller
 {
     protected UserService $userService;
-    protected \App\Service\Post\PostService $postService;
+    protected PostService $postService;
 
-    public function __construct(UserService $userService, \App\Service\Post\PostService $postService)
+    public function __construct(UserService $userService, PostService $postService)
     {
         $this->userService = $userService;
         $this->postService = $postService;
@@ -173,6 +173,13 @@ class UserController extends Controller
     {
         $userId = $request->user()->id;
         $result = $this->userService->acceptTerms($userId);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function hasBankAccount(string $userId)
+    {
+        $result = $this->userService->hasBankAccount($userId);
 
         return response()->json($result, $result['code']);
     }
