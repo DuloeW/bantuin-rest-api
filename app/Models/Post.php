@@ -15,6 +15,24 @@ class Post extends Model
 {
     use HasUuids, HasFactory;
 
+    protected $appends = ['avg_rating', 'completed_jobs_count'];
+
+    public function getAvgRatingAttribute()
+    {
+        $avg = \App\Models\Review::whereHas('transaction.offer', function ($q) {
+            $q->where('post_id', $this->id);
+        })->avg('rating');
+
+        return round((float) ($avg ?? 0), 1);
+    }
+
+    public function getCompletedJobsCountAttribute()
+    {
+        return \App\Models\Transaction::whereHas('offer', function ($q) {
+            $q->where('post_id', $this->id);
+        })->where('status', 'completed')->count();
+    }
+
     public function category()
     {
         return $this->belongsTo(Category::class);
@@ -41,6 +59,11 @@ class Post extends Model
     }
 
     public function users()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }

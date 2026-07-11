@@ -10,3 +10,7 @@ Artisan::command('inspire', function () {
 
 Schedule::command('posts:close-expired-posts')
     ->everyMinute();
+
+// Check overdue transactions every 5 minutes
+Schedule::command('app:handle-overdue-transactions')
+    ->everyFiveMinutes();

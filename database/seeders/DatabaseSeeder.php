@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -33,7 +34,44 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        Category::factory()->count(15)->create();
-        Skill::factory()->count(25)->create();
+        $skills = [
+            'Technology',
+            'Design',
+            'Writing',
+            'Business',
+            'Education',
+            'Health',
+            'Home Services',
+            'Logistics',
+            'Events',
+            'Other',
+        ];
+
+        $categories = [
+            'Technology',
+            'Design',
+            'Writing',
+            'Business',
+            'Education',
+            'Health',
+            'Home Services',
+            'Logistics',
+            'Events',
+            'Other',
+        ];
+
+        foreach ($skills as $skill) {
+            Skill::create([
+                'title' => $skill,
+                'slug'  => Str::slug($skill),
+            ]);
+        }
+
+        foreach ($categories as $category) {
+            Category::create([
+                'title' => $category,
+                'slug'  => Str::slug($category),
+            ]);
+        }
     }
 }

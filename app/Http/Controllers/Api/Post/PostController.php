@@ -117,6 +117,46 @@ class PostController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function update(Request $request, string $id)
+    {
+        $request->validate([
+            'title'             => 'sometimes|string|max:255',
+            'description'       => 'sometimes|string',
+            'category_id'       => 'sometimes|exists:categories,id',
+            'images'            => 'sometimes|array',
+            'images.*'          => 'image|mimes:jpeg,png,jpg|max:2048',
+            'delete_image_ids'  => 'sometimes|array',
+            'delete_image_ids.*'=> 'string',
+            'base_price'        => 'sometimes|numeric|min:0',
+            'time_start'        => 'sometimes|date_format:H:i',
+            'time_end'          => 'sometimes|date_format:H:i|after:time_start',
+            'portfolio_url'     => 'sometimes|nullable|url',
+            'experience_years'  => 'sometimes|integer|min:0',
+            'status'            => 'sometimes|in:active,off',
+            'min_price'         => 'sometimes|numeric|min:0',
+            'max_price'         => 'sometimes|numeric|min:0|gte:min_price',
+            'deadline'          => 'sometimes|date',
+            'method_service'    => 'sometimes|string',
+            'published_until'   => 'sometimes|date',
+            'province_id'       => 'sometimes|integer|exists:indonesia_provinces,id',
+            'city_id'           => 'sometimes|integer|exists:indonesia_cities,id',
+            'district_id'       => 'sometimes|integer|exists:indonesia_districts,id',
+            'village_id'        => 'sometimes|integer|exists:indonesia_villages,id',
+            'address_details'   => 'sometimes|string',
+            'location'          => 'sometimes|array',
+            'location.latitude' => 'required_with:location|numeric|between:-90,90',
+            'location.longitude'=> 'required_with:location|numeric|between:-180,180',
+        ]);
+
+        $data          = $request->except(['images']);
+        $uploadedImages = $request->hasFile('images') ? $request->file('images') : [];
+
+        $result = $this->postService->updatePost($id, $data, $uploadedImages);
+
+        return response()->json($result, $result['code']);
+    }
+
+
     public function search(Request $request)
     {
         $filters = $request->only([
@@ -152,6 +192,13 @@ class PostController extends Controller
     public function getById(string $id)
     {
         $result = $this->postService->getPostById($id);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getReviews(string $id)
+    {
+        $result = $this->postService->getPostReviews($id);
 
         return response()->json($result, $result['code']);
     }

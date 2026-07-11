@@ -8,10 +8,13 @@ use App\Enum\OpenCloseEnum;
 use App\Models\BankAccount;
 use App\Models\Offer;
 use App\Models\Post;
+use App\Models\User;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Log;
 
 class OfferHelpService
 {
@@ -62,6 +65,25 @@ class OfferHelpService
             'initiated_by' => $helperId,
             'offered_price' => $data['offered_price'],
         ]);
+
+        $postOwner = User::find($post->user_id);
+        if ($postOwner) {
+            try {
+                app(NotificationService::class)->sendToUser(
+                    $postOwner,
+                    'New Offer Received!',
+                    $offer->helper->first_name.' has sent an offer for your request "'. $post->title .'". Check it out now!',
+                    [
+                        'post_id'  => (string) $post->id,
+                        'offer_id' => (string) $offer->id,
+                        'screen'   => 'offer_list',
+                    ],
+                    'new_offer'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send new offer notification: ' . $e->getMessage());
+            }
+        }
 
         return $this->successPayload($offer, 'Offer created successfully.');
     }
@@ -151,31 +173,33 @@ class OfferHelpService
                 ]);
             }
 
-            // Ensure no other offer already accepted
-            $alreadyAccepted = $lockedPost->offers()
-                ->where('status', OfferingStatusEnum::ACCEPTED->value)
-                ->exists();
-            if ($alreadyAccepted) {
-                throw ValidationException::withMessages([
-                    'offer' => ['Another offer has already been accepted for this post.']
-                ]);
-            }
+            if (!$lockedPost->is_multiple) {
+                // For single-use posts: ensure no other offer is already accepted
+                $alreadyAccepted = $lockedPost->offers()
+                    ->where('status', OfferingStatusEnum::ACCEPTED->value)
+                    ->exists();
+                if ($alreadyAccepted) {
+                    throw ValidationException::withMessages([
+                        'offer' => ['Another offer has already been accepted for this post.']
+                    ]);
+                }
 
-            // Reject other offers
-            $lockedPost->offers()
-                ->where('id', '!=', $lockedOffer->id)
-                ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+                // Reject all other offers
+                $lockedPost->offers()
+                    ->where('id', '!=', $lockedOffer->id)
+                    ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+
+                // Close the post
+                if ($lockedPost->requestDetail) {
+                    $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+                }
+                if ($lockedPost->offerDetail) {
+                    $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
+                }
+            }
 
             // Accept selected offer
             $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
-
-            // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
-            if ($lockedPost->requestDetail) {
-                $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
-            }
-            if ($lockedPost->offerDetail) {
-                $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
-            }
         });
 
         return $this->successPayload($offer->fresh(), 'Offer accepted successfully.');

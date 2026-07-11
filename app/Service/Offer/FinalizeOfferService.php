@@ -8,8 +8,11 @@ use App\Enum\OpenCloseEnum;
 use App\Models\Offer;
 use App\Models\Post;
 use App\Models\Transaction;
+use App\Models\User;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class FinalizeOfferService
@@ -59,34 +62,25 @@ class FinalizeOfferService
             ]);
         }
 
-        // 3. Hanya offer yang statusnya pending yang bisa di-finalize
-        if ($offer->status !== OfferingStatusEnum::PENDING->value) {
-            if ($offer->status === OfferingStatusEnum::ACCEPTED->value) {
-                // Cek apakah sudah ada transaksi untuk offer ini
-                $hasTransaction = Transaction::where('offer_id', $offer->id)->exists();
-                if ($hasTransaction) {
-                    throw ValidationException::withMessages([
-                        'offer' => ['This offer has already been finalized.'],
-                    ]);
-                }
-                // Jika belum ada transaksi, ijinkan untuk diproses (lanjut ke pembuatan transaksi)
-            } else {
-                throw ValidationException::withMessages([
-                    'offer' => ['Different User Has Taken This Offer.'],
-                ]);
-            }
+        // 3. Hanya offer yang statusnya pending atau accepted yang bisa di-finalize
+        if (!in_array($offer->status, [OfferingStatusEnum::PENDING->value, OfferingStatusEnum::ACCEPTED->value])) {
+            throw ValidationException::withMessages([
+                'offer' => ['Different User Has Taken This Offer.'],
+            ]);
         }
 
-        // 4. Pastikan belum ada offer lain yang diterima
-        $alreadyAccepted = $post->offers()
-            ->where('id', '!=', $offer->id)
-            ->where('status', OfferingStatusEnum::ACCEPTED->value)
-            ->exists();
+        if (!$post->is_multiple) {
+            // 4. Pastikan belum ada offer lain yang diterima
+            $alreadyAccepted = $post->offers()
+                ->where('id', '!=', $offer->id)
+                ->where('status', OfferingStatusEnum::ACCEPTED->value)
+                ->exists();
 
-        if ($alreadyAccepted) {
-            throw ValidationException::withMessages([
-                'offer' => ['Another offer has already been accepted for this post.'],
-            ]);
+            if ($alreadyAccepted) {
+                throw ValidationException::withMessages([
+                    'offer' => ['Another offer has already been accepted for this post.'],
+                ]);
+            }
         }
 
         // 5. Tentukan harga kesepakatan
@@ -102,20 +96,51 @@ class FinalizeOfferService
             $lockedPost  = Post::whereKey($post->id)->lockForUpdate()->first();
             $lockedOffer = Offer::whereKey($offer->id)->lockForUpdate()->first();
 
-            // Reject semua offer lain pada post yang sama
-            $lockedPost->offers()
-                ->where('id', '!=', $lockedOffer->id)
-                ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+            // Cek apakah transaksi sudah ada untuk offer ini
+            $existingTransaction = Transaction::where('offer_id', $lockedOffer->id)->lockForUpdate()->first();
+
+            if ($existingTransaction) {
+                if ($existingTransaction->status !== 'pending') {
+                    throw ValidationException::withMessages([
+                        'offer' => ['This offer has already been finalized and transaction status is ' . $existingTransaction->status . '.'],
+                    ]);
+                }
+
+                // Perbarui transaksi pertama tanpa membuat transaksi baru, tetap status pending
+                $existingTransaction->update([
+                    'final_price' => $agreedPrice,
+                    'admin_fee'   => $adminFee,
+                    'total_price' => $totalPrice,
+                    'deadline'    => $data['deadline'],
+                    'work_notes'  => $data['work_notes'] ?? null,
+                    'status'      => 'pending',
+                ]);
+
+                if ($lockedOffer->status !== OfferingStatusEnum::ACCEPTED->value) {
+                    $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
+                }
+
+                return $existingTransaction;
+            }
+
+            if (!$lockedPost->is_multiple) {
+                // Reject semua offer lain pada post yang sama
+                $lockedPost->offers()
+                    ->where('id', '!=', $lockedOffer->id)
+                    ->update(['status' => OfferingStatusEnum::REJECTED->value]);
+            }
 
             // Accept offer yang dipilih
             $lockedOffer->update(['status' => OfferingStatusEnum::ACCEPTED->value]);
 
-            // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
-            if ($lockedPost->requestDetail) {
-                $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
-            }
-            if ($lockedPost->offerDetail) {
-                $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
+            if (!$lockedPost->is_multiple) {
+                // Tutup detail post berdasarkan tipe post (karena kolom status di tabel posts sudah dihapus)
+                if ($lockedPost->requestDetail) {
+                    $lockedPost->requestDetail()->update(['status' => OpenCloseEnum::CLOSED->value]);
+                }
+                if ($lockedPost->offerDetail) {
+                    $lockedPost->offerDetail()->update(['status' => ActiveOffEnum::OFF->value]);
+                }
             }
 
             // Buat transaksi baru
@@ -134,9 +159,30 @@ class FinalizeOfferService
             return $transaction;
         });
 
+        $targetUserId = ($actorId === $offer->requester_id) ? $offer->helper_id : $offer->requester_id;
+        $targetUser = User::find($targetUserId);
+        if ($targetUser) {
+            try {
+                app(NotificationService::class)->sendToUser(
+                    $targetUser,
+                    'Agreement Pending Approval',
+                    'The final agreement for "' . $post->title . '" is waiting for your approval. Please review the terms.',
+                    [
+                        'post_id'        => (string) $post->id,
+                        'offer_id'       => (string) $offer->id,
+                        'transaction_id' => (string) $transaction->id,
+                        'screen'         => 'offer_list',
+                    ],
+                    'pending_approval'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send pending approval notification: ' . $e->getMessage());
+            }
+        }
+
         return $this->successPayload([
             'transaction' => $transaction->fresh(),
             'offer'       => $offer->fresh(),
-        ], 'Offer finalized and transaction created successfully.');
+        ], 'Offer finalized successfully.');
     }
 }

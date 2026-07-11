@@ -6,6 +6,7 @@ use App\Models\EscrowTransaction;
 use App\Models\Offer;
 use App\Models\Payment;
 use App\Models\Transaction;
+use App\Service\Notification\NotificationService;
 use App\Traits\ServiceResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -43,14 +44,14 @@ class PaymentService
         // Pastikan yang bayar adalah requester dari offer
         if ($offer->requester_id !== $userId) {
             throw ValidationException::withMessages([
-                'offer_id' => ['Kamu tidak berhak membayar offer ini.'],
+                'offer_id' => ['You are not authorized to pay for this offer.'],
             ]);
         }
 
         // Pastikan offer sudah diterima
         if ($offer->status !== 'accepted') {
             throw ValidationException::withMessages([
-                'offer_id' => ['Hanya offer yang sudah diterima yang bisa dibayar.'],
+                'offer_id' => ['Only accepted offers can be paid.'],
             ]);
         }
 
@@ -58,9 +59,9 @@ class PaymentService
         $existingTransaction = Transaction::where('offer_id', $offerId)->first();
         if ($existingTransaction) {
             $existingPayment = $existingTransaction->payment;
-            if ($existingPayment && in_array($existingPayment->status, ['pending', 'completed'])) {
+            if ($existingPayment && in_array($existingPayment->status, ['completed'])) {
                 throw ValidationException::withMessages([
-                    'offer_id' => ['Transaksi untuk offer ini sudah ada.'],
+                    'offer_id' => ['A transaction for this offer already exists.'],
                 ]);
             }
 
@@ -121,7 +122,7 @@ class PaymentService
                     'platform_fee'  => $adminFee,
                     'total'         => $totalPrice,
                 ],
-            ], 'Payment berhasil dibuat. Lanjutkan ke halaman pembayaran Midtrans.', 201);
+            ], 'Payment created successfully. Proceed to the Midtrans payment page.', 201);
         });
     }
 
@@ -172,12 +173,12 @@ class PaymentService
 
         if (!$payment) {
             Log::warning('Midtrans webhook: payment not found', ['order_id' => $orderId]);
-            return $this->errorPayload('Payment tidak ditemukan.', [], 404);
+            return $this->errorPayload('Payment not found.', [], 404);
         }
 
         // Jika sudah completed, skip (idempotent)
         if ($payment->status === 'completed') {
-            return $this->successPayload(null, 'Sudah diproses.');
+            return $this->successPayload(null, 'Already processed.');
         }
 
         DB::transaction(function () use ($payment, $transactionStatus, $fraudStatus, $vaNumber) {
@@ -204,7 +205,7 @@ class PaymentService
             }
         });
 
-        return $this->successPayload(null, 'Notifikasi berhasil diproses.');
+        return $this->successPayload(null, 'Webhook notification processed successfully.');
     }
 
     // -------------------------------------------------------------------------
@@ -226,7 +227,7 @@ class PaymentService
 
         if (!$transaction) {
             throw ValidationException::withMessages([
-                'transaction_id' => ['Transaksi tidak ditemukan.'],
+                'transaction_id' => ['Transaction not found.'],
             ]);
         }
 
@@ -271,7 +272,7 @@ class PaymentService
                     $transaction->refresh();
                 }
             } catch (\Exception $e) {
-                Log::warning("Gagal fetch status dari Midtrans API: " . $e->getMessage());
+                Log::warning('Failed to fetch status from Midtrans API: ' . $e->getMessage());
             }
         }
 
@@ -309,6 +310,46 @@ class PaymentService
         ]);
 
         Log::info('Escrow created', ['transaction_id' => $transaction->id]);
+
+        $projectTitle = $transaction->offer->post->title ?? 'Project';
+        $providerName = $transaction->helper->first_name ?? 'Provider';
+        $requesterName = $transaction->requester->first_name ?? 'Requester';
+
+        if ($transaction->requester) {
+            try {
+                app(NotificationService::class)->sendToUser(
+                    $transaction->requester,
+                    'Payment Successful & Project Started',
+                    'Your project "' . $projectTitle . '" is now in progress. ' . $providerName . ' has been notified to start working.',
+                    [
+                        'transaction_id' => (string) $transaction->id,
+                        'offer_id'       => (string) $transaction->offer_id,
+                        'screen'         => 'offer_list',
+                    ],
+                    'project_started'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send payment success notification to requester: ' . $e->getMessage());
+            }
+        }
+
+        if ($transaction->helper) {
+            try {
+                app(NotificationService::class)->sendToUser(
+                    $transaction->helper,
+                    'Payment Successful & Project Started',
+                    'Project "' . $projectTitle . '" is now in progress! ' . $requesterName . ' has completed payment to escrow.',
+                    [
+                        'transaction_id' => (string) $transaction->id,
+                        'offer_id'       => (string) $transaction->offer_id,
+                        'screen'         => 'offer_list',
+                    ],
+                    'project_started'
+                );
+            } catch (\Exception $e) {
+                Log::error('Failed to send payment success notification to helper: ' . $e->getMessage());
+            }
+        }
     }
 
     /**
@@ -334,13 +375,13 @@ class PaymentService
                     'id'       => $offer->id,
                     'price'    => (int) $transaction->final_price,
                     'quantity' => 1,
-                    'name'     => 'Bantuan Jasa - ' . ($offer->post?->title ?? 'Layanan'),
+                    'name'     => 'Helper Service - ' . ($offer->post?->title ?? 'Service'),
                 ],
                 [
                     'id'       => 'PLATFORM_FEE',
                     'price'    => (int) $transaction->admin_fee,
                     'quantity' => 1,
-                    'name'     => 'Biaya Platform Bantuin',
+                    'name'     => 'Bantuin Platform Fee',
                 ],
             ],
         ];
@@ -400,13 +441,13 @@ class PaymentService
                     'id'       => $offer->id,
                     'price'    => (int) $transaction->final_price,
                     'quantity' => 1,
-                    'name'     => 'Bantuan Jasa - ' . ($offer->post?->title ?? 'Layanan'),
+                    'name'     => 'Helper Service - ' . ($offer->post?->title ?? 'Service'),
                 ],
                 [
                     'id'       => 'PLATFORM_FEE',
                     'price'    => (int) $transaction->admin_fee,
                     'quantity' => 1,
-                    'name'     => 'Biaya Platform Bantuin',
+                    'name'     => 'Bantuin Platform Fee',
                 ],
             ],
         ];

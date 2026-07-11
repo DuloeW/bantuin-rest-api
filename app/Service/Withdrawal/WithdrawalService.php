@@ -28,22 +28,22 @@ class WithdrawalService
 
                 if (!$user) {
                     throw ValidationException::withMessages([
-                        'user' => ['User tidak ditemukan.']
+                        'user' => ['User not found.']
                     ]);
                 }
 
                 $amount = $data['amount'];
                 
-                // Minimal penarikan (misal: 10.000)
+                // Minimum withdrawal amount (e.g. 10,000)
                 if ($amount < 10000) {
                     throw ValidationException::withMessages([
-                        'amount' => ['Minimal penarikan adalah Rp 10.000.']
+                        'amount' => ['Minimum withdrawal amount is Rp 10,000.']
                     ]);
                 }
 
                 if ($user->wallet_balance < $amount) {
                     throw ValidationException::withMessages([
-                        'amount' => ['Saldo wallet tidak mencukupi untuk penarikan ini.']
+                        'amount' => ['Insufficient wallet balance for this withdrawal.']
                     ]);
                 }
 
@@ -53,7 +53,7 @@ class WithdrawalService
 
                 if (!$bankAccount) {
                     throw ValidationException::withMessages([
-                        'bank_account' => ['Rekening bank tidak ditemukan atau bukan milik Anda.']
+                        'bank_account' => ['Bank account not found or does not belong to you.']
                     ]);
                 }
 
@@ -64,11 +64,11 @@ class WithdrawalService
 
                 if ($pendingWithdrawal) {
                     throw ValidationException::withMessages([
-                        'status' => ['Anda masih memiliki pengajuan penarikan yang sedang diproses.']
+                        'status' => ['You still have a pending withdrawal request being processed.']
                     ]);
                 }
 
-                // Kalkulasi admin fee 10%
+                // Calculate 10% admin fee
                 $adminFee = $amount * 0.10;
                 $netAmount = $amount - $adminFee;
 
@@ -81,7 +81,7 @@ class WithdrawalService
                     'status' => 'pending',
                 ]);
 
-                return $this->successPayload($withdrawal, 'Pengajuan penarikan berhasil dibuat.', 201);
+                return $this->successPayload($withdrawal, 'Withdrawal request created successfully.', 201);
             });
         } catch (ValidationException $e) {
             return $this->errorPayload($e->getMessage(), $e->errors(), 422);
@@ -103,6 +103,6 @@ class WithdrawalService
             ->latest()
             ->get();
 
-        return $this->successPayload($withdrawals, 'Riwayat penarikan berhasil diambil.');
+        return $this->successPayload($withdrawals, 'Withdrawal history retrieved successfully.');
     }
 }

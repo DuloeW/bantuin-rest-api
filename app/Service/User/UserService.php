@@ -2,7 +2,10 @@
 
 namespace App\Service\User;
 
+use App\Models\BankAccount;
 use App\Models\EscrowTransaction;
+use App\Models\Image;
+use App\Models\ReportUser;
 use App\Models\Transaction;
 use App\Models\User;
 use App\Traits\ServiceResponse;
@@ -11,8 +14,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Models\ReportUser;
-use App\Models\Image;
+use Laravel\Reverb\Loggers\Log;
 
 class UserService
 {
@@ -48,8 +50,6 @@ class UserService
             'completedRequestPosts as requested_count',
             'helpedTransactions as helped_count',
         ]);
-
-
 
         return $this->successPayload($user, 'user retrieved successfully');
     }
@@ -94,8 +94,6 @@ class UserService
             'helpedTransactions as helped_count',
         ]);
 
-
-
         return $this->successPayload($user, 'profile retrieved successfully');
     }
 
@@ -113,7 +111,7 @@ class UserService
             $activeEscrowBalance = (float) EscrowTransaction::where('status', 'held')
                 ->whereHas('transaction', function ($q) use ($userId) {
                     $q->where('requester_id', $userId)
-                      ->orWhere('helper_id', $userId);
+                        ->orWhere('helper_id', $userId);
                 })
                 ->sum('held_amount');
 
@@ -149,11 +147,11 @@ class UserService
             for ($m = 1; $m <= 12; $m++) {
                 $incomeTrend[] = [
                     'month' => $months[$m - 1],
-                    'amount' => (float) ($earningsByMonth[$m] ?? 0)
+                    'amount' => (float) ($earningsByMonth[$m] ?? 0),
                 ];
                 $spendingOverview[] = [
                     'month' => $months[$m - 1],
-                    'amount' => (float) ($spendingByMonth[$m] ?? 0)
+                    'amount' => (float) ($spendingByMonth[$m] ?? 0),
                 ];
             }
 
@@ -171,7 +169,7 @@ class UserService
                 'income_trend' => $incomeTrend,
                 'spending_overview' => $spendingOverview,
             ], 'Activity analytics retrieved successfully');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $this->errorPayload($e->getMessage(), [], 500);
         }
     }
@@ -307,7 +305,7 @@ class UserService
             $user->save();
 
             return $this->successPayload([
-                'wallet_balance' => (float) $user->wallet_balance
+                'wallet_balance' => (float) $user->wallet_balance,
             ], 'Wallet balance updated successfully');
         } catch (ModelNotFoundException $e) {
             return $this->errorPayload('user not found', [], 404);
@@ -416,7 +414,7 @@ class UserService
     public function reportUser(string $reportedId, string $reporterId, array $data, array $uploadedImages = [])
     {
         $reportedUser = User::find($reportedId);
-        if (!$reportedUser) {
+        if (! $reportedUser) {
             return $this->errorPayload('user not found', [], 404);
         }
 
@@ -449,8 +447,26 @@ class UserService
             ]);
 
             return $this->successPayload($user, 'Terms and conditions accepted successfully');
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             return $this->errorPayload($e->getMessage(), [], 500);
+        }
+    }
+
+    public function hasBankAccount(string $userId)
+    {
+        try {
+            $bankAccount = BankAccount::where('user_id', $userId);
+
+            return $this->successPayload([
+                'has_bank_account' => ! is_null($bankAccount),
+            ], 'Has bank account retrieved successfully.');
+
+        } catch (Exception $e) {
+            // Log actual error for developer debugging
+            Log::error('Error fetching bank account: '.$e->getMessage());
+
+            // Return generic message to user for security
+            return $this->errorPayload('A server error occurred while fetching data.', [], 500);
         }
     }
 }

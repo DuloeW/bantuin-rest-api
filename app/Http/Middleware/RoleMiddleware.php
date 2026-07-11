@@ -14,7 +14,7 @@ class RoleMiddleware
             
             return response()->json([
                 'success' => false,
-                'message' => 'Akses ditolak! Anda tidak memiliki izin untuk halaman ini.',
+                'message' => 'Access denied! You do not have permission for this resource.',
                 'data'    => null
             ], 403);
         }
