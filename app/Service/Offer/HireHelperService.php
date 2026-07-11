@@ -16,6 +16,12 @@ class HireHelperService
 
     public function bookHelperService(Post $post, array $data, string $requesterId)
     {
+        $user = User::find($requesterId);
+
+        if (!$user->email_verified_at) {
+            return $this->errorPayload('Email must be verified to book a helper service.', null, 403);
+        }
+
         if ($post->type !== 'offer') {
             throw ValidationException::withMessages([
                 'post_id' => ['You can only book a helper service on an offer post.'],
@@ -29,7 +35,7 @@ class HireHelperService
         }
 
         $helperHasBank = BankAccount::where('user_id', $post->user_id)->exists();
-        if (! $helperHasBank) {
+        if (!$helperHasBank) {
             throw ValidationException::withMessages([
                 'post_id' => ['The helper must register a bank account before their service can be booked.'],
             ]);

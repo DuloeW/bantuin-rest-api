@@ -69,14 +69,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/{id}/update', [PostController::class, 'update']);
     Route::post('/posts/{id}/report', [PostController::class, 'reportPost']);
 
+    Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
+    Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
+
     Route::get('/addresses/provinces', [AddressController::class, 'getProvinces']);
     Route::get('/addresses/provinces/{provinceId}/cities', [AddressController::class, 'getCitiesByProvince']);
     Route::get('/addresses/cities/{cityId}/districts', [AddressController::class, 'getDistrictsByCity']);
     Route::get('/addresses/districts/{districtId}/villages', [AddressController::class, 'getVillagesByDistrict']);
     Route::post('/addresses/match', [AddressController::class, 'matchAddressNames']);
-
-    Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
-    Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
 
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
     Route::post('/offers/accept', [OfferController::class, 'acceptHelper']);

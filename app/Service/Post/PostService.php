@@ -235,9 +235,9 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            // if (!$user->email_verified_at) {
-            //     return $this->errorPayload('user email is not verified', null, 403);
-            // }
+            if (!$user->email_verified_at) {
+                return $this->errorPayload('Must be verified to post requests', null, 403);
+            }   
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::REQUEST->value)
                 ->whereHas('requestDetail', function ($query) {
@@ -277,9 +277,9 @@ class PostService
 
             $user = User::where('id', $userId)->first();
 
-            // if (!$user->email_verified_at) {
-            //     return $this->errorPayload('user email is not verified', null, 403);
-            // }
+            if (!$user->email_verified_at) {
+                return $this->errorPayload('Must be verified to post offers', null, 403);
+            }
 
             $userHasSamePost = $user->posts()->where('type', TypePostEnum::OFFER->value)
                 ->whereHas('offerDetail', function ($query) {
