@@ -289,7 +289,20 @@ class TransactionController extends Controller
 
         return response()->json($result, $result['code']);
     }
+
+    /**
+     * Get full dispute detail for a transaction (for Flutter disputed screen).
+     *
+     * @param string $id
+     * @return JsonResponse
+     */
+    public function getDisputeDetail(string $id): JsonResponse
+    {
+        $result = $this->transactionService->getTransactionDisputeDetail(
+            $id,
+            auth('sanctum')->id()
+        );
+
+        return response()->json($result, $result['code']);
+    }
 }
-
-
-

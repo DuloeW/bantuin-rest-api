@@ -5,6 +5,7 @@ namespace App\Service\User;
 use App\Models\BankAccount;
 use App\Models\EscrowTransaction;
 use App\Models\Image;
+use App\Models\Post;
 use App\Models\ReportUser;
 use App\Models\Transaction;
 use App\Models\User;
@@ -37,7 +38,7 @@ class UserService
 
         $user->load([
             'photoProfile',
-            // 'ktpPhoto',
+            'ktpPhoto',
             'province:id,name',
             'city:id,name',
             'district:id,name',
@@ -46,7 +47,16 @@ class UserService
         ]);
 
         $user->loadCount([
-            'posts',
+            'posts' => function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('requestDetail', function ($q) {
+                        $q->where('status', 'open');
+                    })
+                    ->orWhereHas('offerDetail', function ($q) {
+                        $q->where('status', 'active');
+                    });
+                });
+            },
             'completedRequestPosts as requested_count',
             'helpedTransactions as helped_count',
         ]);
@@ -80,7 +90,7 @@ class UserService
     {
         $user->load([
             'photoProfile',
-            // 'ktpPhoto',
+            'ktpPhoto',
             'province:id,name',
             'city:id,name',
             'district:id,name',
@@ -89,7 +99,16 @@ class UserService
         ]);
 
         $user->loadCount([
-            'posts',
+            'posts' => function ($query) {
+                $query->where(function ($q) {
+                    $q->whereHas('requestDetail', function ($q) {
+                        $q->where('status', 'open');
+                    })
+                    ->orWhereHas('offerDetail', function ($q) {
+                        $q->where('status', 'active');
+                    });
+                });
+            },
             'completedRequestPosts as requested_count',
             'helpedTransactions as helped_count',
         ]);
@@ -227,6 +246,15 @@ class UserService
                 ]);
         }
 
+        $query->where(function ($q) {
+            $q->whereHas('requestDetail', function ($q) {
+                $q->where('status', 'open');
+            })
+                ->orWhereHas('offerDetail', function ($q) {
+                    $q->where('status', 'active');
+                });
+        });
+
         $posts = $query->get();
 
         $user->load([
@@ -255,6 +283,9 @@ class UserService
                 // $currentProfileImage = $user->photoProfile;
                 // $currentKtpImage = $user->ktpPhoto;
 
+                unset($data['photo_profile']);
+                unset($data['ktp_photo']);
+
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadProfileImage($profileImages, $user));
                 $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
                 $user->update($data);
@@ -274,6 +305,53 @@ class UserService
                 ]);
 
                 return $this->successPayload($user, 'user updated successfully');
+            });
+        } catch (ModelNotFoundException $e) {
+            return $this->errorPayload('user not found', [], 404);
+        } catch (Exception $e) {
+            $this->deleteStoredFiles($uploadedPaths);
+
+            return $this->errorPayload($e->getMessage(), [$e->getFile().':'.$e->getLine().': '.$e->getTraceAsString()], 500);
+        }
+    }
+
+    public function updateKtp(string $id, array $ktpImages)
+    {
+        $uploadedPaths = [];
+
+        try {
+            return DB::transaction(function () use ($id, $ktpImages, &$uploadedPaths) {
+                $user = User::findOrFail($id);
+
+                $uploadedPaths = array_merge($uploadedPaths, $this->uploadKtpImage($ktpImages, $user));
+
+                $user->refresh();
+                $user->load([
+                    'ktpPhoto',
+                    'photoProfile',
+                    'province:id,name',
+                    'city:id,name',
+                    'district:id,name',
+                    'village:id,name',
+                    'skills:id,title',
+                ]);
+
+                $user->loadCount([
+                    'posts' => function ($query) {
+                        $query->where(function ($q) {
+                            $q->whereHas('requestDetail', function ($q) {
+                                $q->where('status', 'open');
+                            })
+                            ->orWhereHas('offerDetail', function ($q) {
+                                $q->where('status', 'active');
+                            });
+                        });
+                    },
+                    'completedRequestPosts as requested_count',
+                    'helpedTransactions as helped_count',
+                ]);
+
+                return $this->successPayload($user, 'KTP updated successfully');
             });
         } catch (ModelNotFoundException $e) {
             return $this->errorPayload('user not found', [], 404);
@@ -333,11 +411,19 @@ class UserService
     {
         $storedPaths = [];
 
-        // Delete old profile image first
-        if ($user->photoProfile) {
-            Storage::disk('public')->delete($user->photoProfile->url);
-            $user->photoProfile()->delete();
+        if (empty($uploadedImages)) {
+            return $storedPaths;
         }
+
+        // Delete old profile image first
+        Image::where('imageable_id', $user->id)
+            ->where('imageable_type', get_class($user))
+            ->where('type', 'profile')
+            ->get()
+            ->each(function ($image) {
+                Storage::disk('public')->delete($image->url);
+                $image->delete();
+            });
 
         foreach ($uploadedImages as $imageFile) {
             $path = $imageFile->store('users-profile', 'public');
@@ -363,11 +449,19 @@ class UserService
     {
         $storedPaths = [];
 
-        // Delete old profile image first
-        if ($user->ktpPhoto) {
-            Storage::disk('public')->delete($user->ktpPhoto->url);
-            $user->ktpPhoto()->delete();
+        if (empty($uploadedImages)) {
+            return $storedPaths;
         }
+
+        // Delete old ktp image first
+        Image::where('imageable_id', $user->id)
+            ->where('imageable_type', get_class($user))
+            ->where('type', 'ktp')
+            ->get()
+            ->each(function ($image) {
+                Storage::disk('public')->delete($image->url);
+                $image->delete();
+            });
 
         foreach ($uploadedImages as $imageFile) {
             $path = $imageFile->store('users-ktp', 'public');
@@ -467,6 +561,57 @@ class UserService
 
             // Return generic message to user for security
             return $this->errorPayload('A server error occurred while fetching data.', [], 500);
+        }
+    }
+
+    public function getUserInactiveOfferPosts(string $userId)
+    {
+        try {
+            $posts = Post::query()
+                ->where('user_id', $userId)
+                ->where('type', 'offer')
+                ->whereHas('offerDetail', function ($q) {
+                    $q->where('status', 'off');
+                })
+                ->with([
+                    'category',
+                    'images',
+                    'offerDetail' => function ($q) {
+                        $q->selectRaw('
+                        post_id,
+                        base_price,
+                        working_hours,
+                        portfolio_url,
+                        experience_years,
+                        status,
+                        province_id,
+                        city_id,
+                        district_id,
+                        village_id,
+                        address_details,
+                        ST_X(location) as latitude,
+                        ST_Y(location) as longitude,
+                        created_at,
+                        updated_at
+                    ');
+                    },
+                    'offerDetail.province:id,name',
+                    'offerDetail.city:id,name',
+                    'offerDetail.district:id,name',
+                    'offerDetail.village:id,name',
+                ])
+                ->get();
+
+            if ($posts->isEmpty()) {
+                return $this->errorPayload('Posts not found', [], 404);
+            }
+
+            return $this->successPayload(
+                $posts,
+                'Inactive offer posts retrieved successfully'
+            );
+        } catch (\Throwable $th) {
+            return $this->errorPayload($th->getMessage(), [], 500);
         }
     }
 }

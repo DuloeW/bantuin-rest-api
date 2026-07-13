@@ -107,6 +107,23 @@ class UserController extends Controller
         return response()->json($result, $result['code']);
     }
 
+    public function updateKtp(Request $request)
+    {
+        $userId = $request->user()->id;
+        $request->validate([
+            'ktp_photo' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        $ktpImages = [];
+        if ($request->hasFile('ktp_photo')) {
+            $ktpImages[] = $request->file('ktp_photo');
+        }
+
+        $result = $this->userService->updateKtp($userId, $ktpImages);
+
+        return response()->json($result, $result['code']);
+    }
+
     public function getUsersPosts(Request $request, string $id)
     {
         $result = $this->userService->getUsersPosts($request, $id);
@@ -180,6 +197,12 @@ class UserController extends Controller
     public function hasBankAccount(string $userId)
     {
         $result = $this->userService->hasBankAccount($userId);
+
+        return response()->json($result, $result['code']);
+    }
+
+    public function getUserInactiveOfferPosts(string $id) {
+        $result = $this->userService->getUserInactiveOfferPosts($id);
 
         return response()->json($result, $result['code']);
     }

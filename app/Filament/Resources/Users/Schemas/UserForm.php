@@ -2,12 +2,14 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
-use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Placeholder;
+use Filament\Schemas\Components\Image;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\HtmlString;
 
 class UserForm
@@ -15,6 +17,7 @@ class UserForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(2)
             ->components([
                 TextInput::make('first_name')
                     ->required()
@@ -66,30 +69,34 @@ class UserForm
                     ->options(['active' => 'Active', 'inactive' => 'Inactive', 'banned' => 'Banned'])
                     ->default('active')
                     ->required(),
-                Placeholder::make('photo_profile')
-                    ->label('Foto Profil')
-                    ->content(function ($record) {
-                        if ($record) {
-                            $profileUrl = $record->photo_profile ?: ($record->photoProfile ? $record->photoProfile->url : null);
-                            if ($profileUrl) {
-                                $url = str_starts_with($profileUrl, 'http') ? $profileUrl : \Illuminate\Support\Facades\Storage::url($profileUrl);
-                                return new HtmlString('<a href="'. e($url) .'" target="_blank"><img src="' . e($url) . '" alt="Foto Profil" style="max-width: 200px; border-radius: 8px; margin-top: 8px;" /></a>');
-                            }
-                        }
-                        return 'Belum ada foto profil';
-                    }),
-                Placeholder::make('ktp_photo')
-                    ->label('Foto KTP')
-                    ->content(function ($record) {
-                        if ($record) {
-                            $ktpUrl = $record->ktp_photo ?: ($record->ktpPhoto ? $record->ktpPhoto->url : null);
-                            if ($ktpUrl) {
-                                $url = str_starts_with($ktpUrl, 'http') ? $ktpUrl : \Illuminate\Support\Facades\Storage::url($ktpUrl);
-                                return new HtmlString('<a href="'. e($url) .'" target="_blank"><img src="' . e($url) . '" alt="Foto KTP" style="max-width: 400px; border-radius: 8px; margin-top: 8px;" /></a>');
-                            }
-                        }
-                        return 'Belum ada foto KTP';
-                    }),
+                Section::make('Dokumen')
+                    ->columnSpanFull()
+                    ->columns(2)
+                    ->schema([
+                        Placeholder::make('profile_preview')
+                            ->content(function ($record) {
+
+                            }),
+                        Placeholder::make('ktp_preview')
+                            ->label('Foto KTP')
+                            ->content(function ($record) {
+
+                                $record->loadMissing('ktpPhoto');
+
+                                if (! $record->ktpPhoto) {
+                                    return 'Belum ada foto KTP';
+                                }
+
+                                $url = Storage::disk('public')->url($record->ktpPhoto->url);
+
+                                return new HtmlString("
+                                                        <a href='{$url}' target='_blank'>
+                                                            <img src='{$url}' style='max-width:400px;border-radius:8px'>
+                                                        </a>
+                                                    ");
+                            }),
+
+                    ]),
             ]);
     }
 }

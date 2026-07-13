@@ -189,14 +189,19 @@ class PostService
             'users.photoProfile',
             // 'users.ktpPhoto',
             'requestDetail' => function ($query) {
-                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $query->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'open');
             },
             'requestDetail.province:id,name',
             'requestDetail.city:id,name',
             'requestDetail.district:id,name',
             'requestDetail.village:id,name',
             'images',
-        ])->get();
+        ])
+        ->whereHas('requestDetail', function ($q) {
+            $q->where('status', 'open');
+        })
+        ->get();
 
         return $this->successPayload($posts, 'posts with request details retrieved successfully');
     }
@@ -213,14 +218,19 @@ class PostService
             'users.photoProfile',
             // 'users.ktpPhoto',
             'offerDetail' => function ($query) {
-                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $query->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'active');
             },
             'offerDetail.province:id,name',
             'offerDetail.city:id,name',
             'offerDetail.district:id,name',
             'offerDetail.village:id,name',
             'images',
-        ])->get();
+        ])
+        ->whereHas('offerDetail', function ($q) {
+            $q->where('status', 'active');
+        })
+        ->get();
 
         return $this->successPayload($posts, 'posts with offer details retrieved successfully');
     }
@@ -386,21 +396,30 @@ class PostService
             },
             'users.photoProfile',
             'requestDetail' => function ($q) {
-                $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'open');
             },
             'requestDetail.province:id,name',
             'requestDetail.city:id,name',
             'requestDetail.district:id,name',
             'requestDetail.village:id,name',
             'offerDetail' => function ($q) {
-                $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'active');
             },
             'offerDetail.province:id,name',
             'offerDetail.city:id,name',
             'offerDetail.district:id,name',
             'offerDetail.village:id,name',
             'images',
-        ]);
+        ])
+        ->where(function ($query) {
+            $query->whereHas('requestDetail', function ($q) {
+                $q->where('status', 'open');
+            })->orWhereHas('offerDetail', function ($q) {
+                $q->where('status', 'active');
+            });
+        });
 
         // Search by keyword (title or description)
         if (! empty($filters['query'])) {
@@ -561,14 +580,16 @@ class PostService
             },
             'users.photoProfile',
             'requestDetail' => function ($q) {
-                $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $q->selectRaw('post_id, min_price, max_price, deadline, method_service, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'open');
             },
             'requestDetail.province:id,name',
             'requestDetail.city:id,name',
             'requestDetail.district:id,name',
             'requestDetail.village:id,name',
             'offerDetail' => function ($q) {
-                $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at');
+                $q->selectRaw('post_id, base_price, working_hours, portfolio_url, experience_years, status, province_id, city_id, district_id, village_id, address_details, ST_X(location) as latitude, ST_Y(location) as longitude, created_at, updated_at')
+                    ->where('status', 'active');
             },
             'offerDetail.province:id,name',
             'offerDetail.city:id,name',
@@ -576,6 +597,13 @@ class PostService
             'offerDetail.village:id,name',
             'images',
         ])
+            ->where(function ($query) {
+                $query->whereHas('requestDetail', function ($q) {
+                    $q->where('status', 'open');
+                })->orWhereHas('offerDetail', function ($q) {
+                    $q->where('status', 'active');
+                });
+            })
             ->select('posts.*')
             ->leftJoin('request_posts', 'request_posts.post_id', '=', 'posts.id')
             ->leftJoin('service_posts', 'service_posts.post_id', '=', 'posts.id')

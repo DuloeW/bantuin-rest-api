@@ -19,7 +19,7 @@ class Post extends Model
 
     public function getAvgRatingAttribute()
     {
-        $avg = \App\Models\Review::whereHas('transaction.offer', function ($q) {
+        $avg = Review::whereHas('transaction.offer', function ($q) {
             $q->where('post_id', $this->id);
         })->avg('rating');
 
@@ -28,7 +28,7 @@ class Post extends Model
 
     public function getCompletedJobsCountAttribute()
     {
-        return \App\Models\Transaction::whereHas('offer', function ($q) {
+        return Transaction::whereHas('offer', function ($q) {
             $q->where('post_id', $this->id);
         })->where('status', 'completed')->count();
     }

@@ -518,6 +518,24 @@ class TransactionService
                         ]);
                     }
 
+                    // Notify requester that revision is rejected and transaction is disputed
+                    if ($transaction->requester) {
+                        try {
+                            app(\App\Service\Notification\NotificationService::class)->sendToUser(
+                                $transaction->requester,
+                                'Sengketa Dibuat (Disputed)',
+                                'Helper menolak permintaan revisi. Transaksi ini masuk ke status sengketa dan akan ditinjau oleh admin.',
+                                [
+                                    'transaction_id' => (string) $transaction->id,
+                                    'screen'         => 'dispute_detail',
+                                ],
+                                'dispute_created'
+                            );
+                        } catch (\Exception $e) {
+                            Log::error('Failed to send dispute created notification: ' . $e->getMessage());
+                        }
+                    }
+
                     return $this->successPayload($report, 'Revision declined. Transaction moved to disputed status for admin mediation.');
                 }
             });
@@ -722,6 +740,24 @@ class TransactionService
                         'description' => $data['dispute_reason'] ?? 'Helper declined the refund request from requester.',
                         'status' => 'pending',
                     ]);
+
+                    // Notify requester that refund is rejected and transaction is disputed
+                    if ($transaction->requester) {
+                        try {
+                            app(\App\Service\Notification\NotificationService::class)->sendToUser(
+                                $transaction->requester,
+                                'Sengketa Dibuat (Disputed)',
+                                'Helper menolak pengajuan refund. Transaksi ini masuk ke status sengketa dan akan ditinjau oleh admin.',
+                                [
+                                    'transaction_id' => (string) $transaction->id,
+                                    'screen'         => 'dispute_detail',
+                                ],
+                                'dispute_created'
+                            );
+                        } catch (\Exception $e) {
+                            Log::error('Failed to send dispute created notification: ' . $e->getMessage());
+                        }
+                    }
 
                     return $this->successPayload($report, 'Refund declined. Transaction moved to disputed status for admin mediation.');
                 }
@@ -1258,6 +1294,8 @@ class TransactionService
             'revisions.completionImages',
             'reviews',
             'refunds',
+            'refundImages',
+            'reportTransaction',
         ])->find($id);
 
         if (!$transaction) {
@@ -1265,6 +1303,128 @@ class TransactionService
         }
 
         return $this->successPayload($transaction, 'Transaction retrieved successfully.');
+    }
+
+    /**
+     * Get dispute detail for a transaction (for Flutter disputed screen).
+     *
+     * @param string $id
+     * @param string $userId
+     * @return array
+     */
+    public function getTransactionDisputeDetail(string $id, string $userId): array
+    {
+        $transaction = Transaction::with([
+            'helper',
+            'helper.photoProfile',
+            'requester',
+            'requester.photoProfile',
+            'offer.post',
+            'completionImages',
+            'revisions' => fn ($q) => $q->latest(),
+            'revisions.images',
+            'revisions.completionImages',
+            'refunds',
+            'refundImages',
+            'reportTransaction',
+        ])->find($id);
+
+        if (!$transaction) {
+            return $this->errorPayload('Transaction not found.', [], 404);
+        }
+
+        // Only requester or helper can view dispute detail
+        if ($transaction->requester_id !== $userId && $transaction->helper_id !== $userId) {
+            return $this->errorPayload('Unauthorized.', [], 403);
+        }
+
+        // Determine role of the authenticated user
+        $myRole = $transaction->requester_id === $userId ? 'requester' : 'helper';
+
+        // Build timeline of events for the Flutter UI
+        $timeline = [];
+
+        // 1. Revisions in chronological order
+        foreach ($transaction->revisions as $rev) {
+            $timeline[] = [
+                'type'        => 'revision',
+                'id'          => $rev->id,
+                'status'      => $rev->status,
+                'notes'       => $rev->revision_notes,
+                'deadline'    => $rev->revision_deadline?->toISOString(),
+                'created_at'  => $rev->created_at?->toISOString(),
+                'images'      => $rev->images->map(fn ($img) => [
+                    'url' => str_starts_with($img->url, 'http')
+                        ? $img->url
+                        : \Illuminate\Support\Facades\Storage::disk('public')->url($img->url),
+                ]),
+                'completion_notes'   => $rev->completion_notes,
+                'completion_images'  => $rev->completionImages->map(fn ($img) => [
+                    'url' => str_starts_with($img->url, 'http')
+                        ? $img->url
+                        : \Illuminate\Support\Facades\Storage::disk('public')->url($img->url),
+                ]),
+            ];
+        }
+
+        // 2. Refund events
+        foreach ($transaction->refunds as $refund) {
+            $refundImages = $transaction->refundImages->map(fn ($img) => [
+                'url' => str_starts_with($img->url, 'http')
+                    ? $img->url
+                    : \Illuminate\Support\Facades\Storage::disk('public')->url($img->url),
+            ]);
+
+            $timeline[] = [
+                'type'       => 'refund',
+                'id'         => $refund->id,
+                'status'     => $refund->status,
+                'amount'     => $refund->amount,
+                'reason'     => $refund->reason,
+                'created_at' => $refund->created_at?->toISOString(),
+                'images'     => $refundImages,
+            ];
+        }
+
+        // Completion images from helper
+        $completionImages = $transaction->completionImages->map(fn ($img) => [
+            'url' => str_starts_with($img->url, 'http')
+                ? $img->url
+                : \Illuminate\Support\Facades\Storage::disk('public')->url($img->url),
+        ]);
+
+        $report = $transaction->reportTransaction;
+
+        return $this->successPayload([
+            'transaction_id'    => $transaction->id,
+            'status'            => $transaction->status,
+            'my_role'           => $myRole,
+            'total_price'       => $transaction->total_price,
+            'final_price'       => $transaction->final_price,
+            'deadline'          => $transaction->deadline?->toISOString(),
+            'completion_notes'  => $transaction->completion_notes,
+            'completion_images' => $completionImages,
+            'helper'            => [
+                'id'         => $transaction->helper?->id,
+                'name'       => trim(($transaction->helper?->first_name ?? '') . ' ' . ($transaction->helper?->last_name ?? '')),
+                'photo'      => $transaction->helper?->photoProfile?->url,
+            ],
+            'requester'         => [
+                'id'         => $transaction->requester?->id,
+                'name'       => trim(($transaction->requester?->first_name ?? '') . ' ' . ($transaction->requester?->last_name ?? '')),
+                'photo'      => $transaction->requester?->photoProfile?->url,
+            ],
+            'post_title'        => $transaction->offer?->post?->title,
+            'timeline'          => $timeline,
+            'dispute_report'    => $report ? [
+                'id'            => $report->id,
+                'reason'        => $report->reason_category,
+                'description'   => $report->description,
+                'status'        => $report->status,        // pending / investigating / resolved
+                'admin_notes'   => $report->admin_notes,   // keputusan admin (terlihat setelah resolved)
+                'resolved_at'   => $report->resolved_at?->toISOString(),
+            ] : null,
+        ], 'Dispute detail retrieved successfully.');
     }
 }
 

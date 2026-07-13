@@ -32,6 +32,10 @@ class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasApiTokens, HasFactory, HasUuids, Notifiable;
 
+    public $incrementing = false;
+
+    protected $keyType = 'string';
+
     /**
      * Get the attributes that should be cast.
      *
@@ -112,15 +116,17 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function photoProfile()
     {
         return $this->morphOne(Image::class, 'imageable')
-            ->where('type', 'profile')
-            ->latestOfMany();
+            ->ofMany(['id' => 'max'], function ($query) {
+                $query->where('type', 'profile');
+            });
     }
 
     public function ktpPhoto()
     {
         return $this->morphOne(Image::class, 'imageable')
-            ->where('type', 'ktp')
-            ->latestOfMany();
+            ->ofMany(['id' => 'max'], function ($query) {
+                $query->where('type', 'ktp');
+            });
     }
 
     public function province()

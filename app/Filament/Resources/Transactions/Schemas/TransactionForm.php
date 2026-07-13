@@ -2,13 +2,15 @@
 
 namespace App\Filament\Resources\Transactions\Schemas;
 
-use Filament\Schemas\Schema;
-use Filament\Schemas\Components\Section;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Infolists\Components\ImageEntry;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\ImageColumn;
 use Illuminate\Support\HtmlString;
 
 class TransactionForm
@@ -21,9 +23,9 @@ class TransactionForm
                 ->schema([
                     Select::make('requester_id')
                         ->label('Requester')
-                        ->relationship('requester', 'first_name') 
+                        ->relationship('requester', 'first_name')
                         ->disabled(),
-                    
+
                     Select::make('helper_id')
                         ->label('Helper')
                         ->relationship('helper', 'first_name')
@@ -110,6 +112,11 @@ class TransactionForm
                             return 'Belum ada foto penyelesaian';
                         })
                         ->columnSpanFull(),
+                    
+                    ImageColumn::make('completion_photos')
+                        ->label('Foto Penyelesaian Pekerjaan')
+                        ->disk('public')
+                        ->width(50),
                 ]),
         ]);
     }

@@ -11,12 +11,12 @@ class ReportTransaction extends Model
 {
     use HasUuids;
     use HasFactory;
+
     protected $guarded = [];
 
     protected $casts = [
-        // SANGAT PENTING untuk Filament: Karena tadi di FileUpload kita pakai ->multiple(),
-        // Filament akan menyimpan path file dalam bentuk array/JSON di database.
-        'evidence_files' => 'array', 
+        'evidence_files' => 'array',
+        'resolved_at'    => 'datetime',
     ];
 
     public function transaction()
@@ -34,8 +34,14 @@ class ReportTransaction extends Model
         return $this->belongsTo(User::class, 'reported_id');
     }
 
+    public function resolvedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'resolved_by');
+    }
+
     public function images(): \Illuminate\Database\Eloquent\Relations\MorphMany
     {
         return $this->morphMany(Image::class, 'imageable');
     }
 }
+

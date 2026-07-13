@@ -39,11 +39,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/users/jobs', [UserController::class, 'getMyJobs']);
     Route::get('/users', [UserController::class, 'getAll']);
     Route::put('/users', [UserController::class, 'update']);
+    Route::post('/users/ktp', [UserController::class, 'updateKtp']);
     Route::patch('/users/wallet', [UserController::class, 'updateWalletBalance']);
     Route::put('/users/password', [UserController::class, 'changePassword']);
     Route::get('/users/first-name/{name}', [UserController::class, 'getByFirstName']);
     Route::get('/users/last-name/{name}', [UserController::class, 'getByLastName']);
     Route::get('/users/{id}', [UserController::class, 'getById']);
+    Route::get('/users/posts/{id}/offer/inactive', [UserController::class, 'getUserInactiveOfferPosts']);
     Route::get('/users/posts/{id}', [UserController::class, 'getUsersPosts']);
     Route::post('/users/{id}/report', [UserController::class, 'reportUser']);
     Route::patch('/users/accept-terms', [UserController::class, 'acceptTerms']);
@@ -115,6 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/revisions/{revisionId}/respond', [TransactionController::class, 'respondRevision']);
     Route::post('/transactions/{id}/refund', [TransactionController::class, 'requestRefund']);
     Route::post('/refunds/{refundId}/respond', [TransactionController::class, 'respondRefund']);
+    Route::get('/transactions/{id}/dispute', [TransactionController::class, 'getDisputeDetail']);
 
     // Withdrawals (Penarikan Dana Helper)
     Route::get('/withdrawals', [WithdrawalController::class, 'index']);

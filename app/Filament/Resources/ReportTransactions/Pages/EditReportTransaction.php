@@ -10,10 +10,21 @@ class EditReportTransaction extends EditRecord
 {
     protected static string $resource = ReportTransactionResource::class;
 
+    public function getTitle(): string
+    {
+        return 'Tinjau Dispute: ' . ($this->record->transaction?->id ?? $this->record->id);
+    }
+
     protected function getHeaderActions(): array
     {
         return [
-            DeleteAction::make(),
+            DeleteAction::make()
+                ->label('Hapus Laporan'),
         ];
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Status laporan & catatan admin berhasil disimpan.';
     }
 }
