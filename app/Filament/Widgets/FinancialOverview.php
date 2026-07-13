@@ -23,43 +23,43 @@ class FinancialOverview extends StatsOverviewWidget
         $disputedTransactions = EscrowTransaction::where('status', 'disputed')->count();
 
         return [
-            Stat::make('Dana Tertahan (Escrow)', 'Rp '.number_format((float) $heldEscrow, 0, ',', '.'))
-                ->description('Uang yang belum diteruskan ke helper')
+            Stat::make('Funds Held (Escrow)', 'Rp '.number_format((float) $heldEscrow, 0, ',', '.'))
+                ->description('Money not yet released to helper')
                 ->descriptionIcon('heroicon-m-lock-closed')
                 ->color('warning'),
 
-            Stat::make('Total Pendapatan Admin', 'Rp '.number_format((float) $adminFees, 0, ',', '.'))
-                ->description('Total fee admin dari transaksi selesai')
+            Stat::make('Total Admin Revenue', 'Rp '.number_format((float) $adminFees, 0, ',', '.'))
+                ->description('Total admin fees from completed transactions')
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success'),
 
-            Stat::make('Total Perputaran Uang', 'Rp '.number_format((float) $grossVolume, 0, ',', '.'))
-                ->description('Total gross volume dari pembayaran berhasil')
+            Stat::make('Gross Volume', 'Rp '.number_format((float) $grossVolume, 0, ',', '.'))
+                ->description('Total gross volume from successful payments')
                 ->descriptionIcon('heroicon-m-arrow-trending-up')
                 ->color('primary'),
 
-            Stat::make('Dana Dikembalikan (Refund)', 'Rp '.number_format((float) $refundedAmount, 0, ',', '.'))
-                ->description('Total uang yang dikembalikan ke requester')
+            Stat::make('Refunded Funds', 'Rp '.number_format((float) $refundedAmount, 0, ',', '.'))
+                ->description('Total money refunded to requesters')
                 ->descriptionIcon('heroicon-m-arrow-uturn-left')
                 ->color('danger'),
 
-            Stat::make('Total Transaksi', $totalTransactions)
-                ->description('Total keseluruhan transaksi')
+            Stat::make('Total Transactions', $totalTransactions)
+                ->description('Total overall transactions')
                 ->descriptionIcon('heroicon-m-shopping-cart')
                 ->color('gray'),
 
-            Stat::make('Transaksi Sukses', $successfulTransactions)
-                ->description('Transaksi yang sudah selesai')
+            Stat::make('Successful Transactions', $successfulTransactions)
+                ->description('Transactions that have been completed')
                 ->descriptionIcon('heroicon-m-check-circle')
                 ->color('success'),
 
-            Stat::make('Transaksi Refund', $refundedTransactions)
-                ->description('Transaksi yang dikembalikan')
+            Stat::make('Refunded Transactions', $refundedTransactions)
+                ->description('Transactions that have been refunded')
                 ->descriptionIcon('heroicon-m-arrow-uturn-left')
                 ->color('warning'),
 
-            Stat::make('Sengketa (Dispute)', $disputedTransactions)
-                ->description('Transaksi yang sedang bermasalah')
+            Stat::make('Disputes', $disputedTransactions)
+                ->description('Transactions currently disputed')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->color('danger'),
         ];

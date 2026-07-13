@@ -35,12 +35,12 @@ class RefundsTable
                     ->toggleable(),
 
                 TextColumn::make('amount')
-                    ->label('Jumlah (Rp)')
+                    ->label('Amount (Rp)')
                     ->money('idr')
                     ->sortable(),
 
                 TextColumn::make('reason')
-                    ->label('Alasan')
+                    ->label('Reason')
                     ->limit(40)
                     ->toggleable(),
 
@@ -57,13 +57,13 @@ class RefundsTable
                     ->sortable(),
 
                 TextColumn::make('processed_at')
-                    ->label('Diproses Pada')
+                    ->label('Processed At')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('created_at')
-                    ->label('Dibuat Pada')
+                    ->label('Created At')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(),
@@ -85,7 +85,7 @@ class RefundsTable
                     ->color('success')
                     ->requiresConfirmation()
                     ->modalHeading('Approve Refund')
-                    ->modalDescription('Apakah Anda yakin ingin menyetujui refund ini? Dana akan dikembalikan ke user.')
+                    ->modalDescription('Are you sure you want to approve this refund? Funds will be returned to the user.')
                     ->action(function (Refund $record) {
                         $record->update([
                             'status' => 'completed',
@@ -105,7 +105,7 @@ class RefundsTable
                         $record->transaction?->update(['status' => 'cancelled']);
 
                         Notification::make()
-                            ->title('Refund berhasil disetujui')
+                            ->title('Refund successfully approved')
                             ->success()
                             ->send();
                     })
@@ -116,21 +116,21 @@ class RefundsTable
                     ->color('danger')
                     ->requiresConfirmation()
                     ->modalHeading('Reject Refund')
-                    ->modalDescription('Berikan alasan penolakan refund.')
+                    ->modalDescription('Please provide a reason for rejecting the refund.')
                     ->form([
                         Textarea::make('rejection_reason')
-                            ->label('Alasan Penolakan')
+                            ->label('Rejection Reason')
                             ->required(),
                     ])
                     ->action(function (Refund $record, array $data) {
                         $record->update([
                             'status' => 'rejected',
-                            'reason' => ($record->reason ? $record->reason . ' | Ditolak: ' : 'Ditolak: ') . $data['rejection_reason'],
+                            'reason' => ($record->reason ? $record->reason . ' | Rejected: ' : 'Rejected: ') . $data['rejection_reason'],
                             'processed_at' => now(),
                         ]);
 
                         Notification::make()
-                            ->title('Refund ditolak')
+                            ->title('Refund rejected')
                             ->warning()
                             ->send();
                     })

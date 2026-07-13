@@ -18,7 +18,7 @@ class TransactionForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Detail Pengguna & Penawaran')
+            Section::make('User & Offer Details')
                 ->columns(3)
                 ->schema([
                     Select::make('requester_id')
@@ -32,89 +32,84 @@ class TransactionForm
                         ->disabled(),
 
                     Select::make('offer_id')
-                        ->label('Offer Terkait')
+                        ->label('Related Offer')
                         ->relationship('offer', 'id')
                         ->disabled(),
                 ]),
 
-            Section::make('Rincian Biaya')
+            Section::make('Cost Breakdown')
                 ->columns(3)
                 ->schema([
                     TextInput::make('final_price')
-                        ->label('Harga Kesepakatan')
+                        ->label('Agreed Price')
                         ->numeric()
                         ->prefix('Rp')
                         ->disabled(),
 
                     TextInput::make('admin_fee')
-                        ->label('Biaya Admin')
+                        ->label('Admin Fee')
                         ->numeric()
                         ->prefix('Rp')
                         ->disabled(),
 
                     TextInput::make('total_price')
-                        ->label('Total Bayar')
+                        ->label('Total Paid')
                         ->numeric()
                         ->prefix('Rp')
                         ->disabled(),
                 ]),
 
-            Section::make('Status & Waktu')
+            Section::make('Status & Time')
                 ->columns(3)
                 ->schema([
                     Select::make('status')
-                        ->label('Status Transaksi')
+                        ->label('Transaction Status')
                         ->options([
                             'pending' => 'Pending',
                             'on_progress' => 'On Progress',
-                            'pending_approval' => 'Pending Approval (Menunggu Persetujuan)',
-                            'pending_revision' => 'Pending Revision (Menunggu Revisi)',
+                            'pending_approval' => 'Pending Approval',
+                            'pending_revision' => 'Pending Revision',
                             'completed' => 'Completed',
-                            'disputed' => 'Disputed (Bermasalah)',
+                            'disputed' => 'Disputed',
                             'cancelled' => 'Cancelled',
                         ])
                         ->required()
                         ->native(false),
 
                     DateTimePicker::make('deadline')
-                        ->label('Batas Waktu')
-                        ->disabled(),
-
-                    TextInput::make('max_revision')
-                        ->label('Batas Revisi')
-                        ->numeric()
+                        ->label('Deadline')
                         ->disabled(),
                 ]),
 
-            Section::make('Catatan Pengerjaan')
+            Section::make('Work Notes')
                 ->columns(2)
                 ->schema([
                     Textarea::make('work_notes')
-                        ->label('Instruksi/Catatan Awal')
+                        ->label('Initial Instructions / Notes')
                         ->disabled(),
 
                     Textarea::make('completion_notes')
-                        ->label('Catatan Penyelesaian')
+                        ->label('Completion Notes')
                         ->disabled(),
 
                     Placeholder::make('completion_photos')
-                        ->label('Foto Penyelesaian Pekerjaan')
+                        ->label('Work Completion Photos')
                         ->content(function ($record) {
                             if ($record && $record->completionImages->count() > 0) {
                                 $html = '<div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px;">';
                                 foreach ($record->completionImages as $image) {
                                     $url = str_starts_with($image->url, 'http') ? $image->url : \Illuminate\Support\Facades\Storage::url($image->url);
-                                    $html .= '<a href="'. e($url) .'" target="_blank"><img src="' . e($url) . '" alt="Foto Penyelesaian" style="max-height: 150px; border-radius: 8px; border: 1px solid #333;" /></a>';
+                                    $html .= '<a href="'. e($url) .'" target="_blank"><img src="' . e($url) . '" alt="Completion Photo" style="max-height: 150px; border-radius: 8px; border: 1px solid #333;" /></a>';
                                 }
                                 $html .= '</div>';
                                 return new HtmlString($html);
                             }
-                            return 'Belum ada foto penyelesaian';
+                            return 'No completion photos yet';
                         })
                         ->columnSpanFull(),
                     
                     ImageColumn::make('completion_photos')
-                        ->label('Foto Penyelesaian Pekerjaan')
+                        ->label('Work Completion Photos')
                         ->disk('public')
                         ->width(50),
                 ]),

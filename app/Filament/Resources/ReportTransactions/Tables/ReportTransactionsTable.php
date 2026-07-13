@@ -18,7 +18,7 @@ class ReportTransactionsTable
         return $table
             ->columns([
                 TextColumn::make('transaction.id')
-                    ->label('ID Transaksi')
+                    ->label('Transaction ID')
                     ->searchable()
                     ->sortable()
                     ->copyable()
@@ -26,12 +26,12 @@ class ReportTransactionsTable
                     ->tooltip(fn ($record) => $record->transaction?->id),
 
                 TextColumn::make('reason_category')
-                    ->label('Penyebab Dispute')
+                    ->label('Dispute Reason')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'revision_declined'   => '🔄 Revisi Ditolak Helper',
-                        'refund_declined'     => '💰 Refund Ditolak Helper',
-                        'work_unsatisfactory' => '⚠️ Pekerjaan Tidak Sesuai',
+                        'revision_declined'   => 'Revision Declined by Helper',
+                        'refund_declined'     => 'Refund Declined by Helper',
+                        'work_unsatisfactory' => 'Unsatisfactory Work',
                         default               => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -42,21 +42,21 @@ class ReportTransactionsTable
                     }),
 
                 TextColumn::make('reporter.first_name')
-                    ->label('Pelapor (Requester)')
+                    ->label('Reporter (Requester)')
                     ->searchable()
                     ->formatStateUsing(fn ($state, $record) =>
                         ($record->reporter?->first_name ?? '') . ' ' . ($record->reporter?->last_name ?? '')
                     ),
 
                 TextColumn::make('reported.first_name')
-                    ->label('Terlapor (Helper)')
+                    ->label('Reported (Helper)')
                     ->searchable()
                     ->formatStateUsing(fn ($state, $record) =>
                         ($record->reported?->first_name ?? '') . ' ' . ($record->reported?->last_name ?? '')
                     ),
 
                 TextColumn::make('transaction.status')
-                    ->label('Status Transaksi')
+                    ->label('Transaction Status')
                     ->badge()
                     ->color(fn (?string $state): string => match ($state) {
                         'disputed'         => 'danger',
@@ -67,61 +67,67 @@ class ReportTransactionsTable
                         default            => 'gray',
                     })
                     ->formatStateUsing(fn (?string $state): string => match ($state) {
-                        'disputed'         => '⚠️ Disputed',
-                        'cancelled'        => '❌ Cancelled',
-                        'pending_revision' => '🔄 Pending Revision',
-                        'pending_refund'   => '💰 Pending Refund',
-                        'completed'        => '✅ Completed',
+                        'disputed'         => 'Disputed',
+                        'cancelled'        => 'Cancelled',
+                        'pending_revision' => 'Pending Revision',
+                        'pending_refund'   => 'Pending Refund',
+                        'completed'        => 'Completed',
                         default            => $state ?? '-',
                     }),
 
                 TextColumn::make('status')
-                    ->label('Status Laporan')
+                    ->label('Report Status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'pending'       => 'warning',
-                        'investigating' => 'info',
-                        'resolved'      => 'success',
-                        default         => 'gray',
+                        'pending'            => 'warning',
+                        'investigating'      => 'info',
+                        'resolved'           => 'success',
+                        'refunded'           => 'danger',
+                        'partially_refunded' => 'primary',
+                        default              => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'pending'       => '⏳ Pending',
-                        'investigating' => '🔍 Investigating',
-                        'resolved'      => '✅ Resolved',
-                        default         => $state,
+                        'pending'            => 'Pending',
+                        'investigating'      => 'Investigating',
+                        'resolved'           => 'Resolved (Helper)',
+                        'refunded'           => 'Refunded (Requester)',
+                        'partially_refunded' => 'Partially Refunded',
+                        default              => $state,
                     }),
 
                 TextColumn::make('transaction.total_price')
-                    ->label('Nilai Sengketa')
+                    ->label('Disputed Amount')
                     ->money('idr')
                     ->sortable(),
 
                 TextColumn::make('created_at')
-                    ->label('Dilaporkan Pada')
+                    ->label('Reported At')
                     ->dateTime('d M Y, H:i')
                     ->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')
-                    ->label('Status Laporan')
+                    ->label('Report Status')
                     ->options([
-                        'pending'       => '⏳ Pending',
-                        'investigating' => '🔍 Investigating',
-                        'resolved'      => '✅ Resolved',
+                        'pending'            => 'Pending',
+                        'investigating'      => 'Investigating',
+                        'resolved'           => 'Resolved (Helper)',
+                        'refunded'           => 'Refunded (Requester)',
+                        'partially_refunded' => 'Partially Refunded',
                     ]),
 
                 SelectFilter::make('reason_category')
-                    ->label('Penyebab Dispute')
+                    ->label('Dispute Reason')
                     ->options([
-                        'revision_declined'   => '🔄 Revisi Ditolak Helper',
-                        'refund_declined'     => '💰 Refund Ditolak Helper',
-                        'work_unsatisfactory' => '⚠️ Pekerjaan Tidak Sesuai',
+                        'revision_declined'   => 'Revision Declined by Helper',
+                        'refund_declined'     => 'Refund Declined by Helper',
+                        'work_unsatisfactory' => 'Unsatisfactory Work',
                     ]),
             ])
             ->defaultSort('created_at', 'desc')
             ->recordActions([
                 EditAction::make()
-                    ->label('Tinjau & Putuskan'),
+                    ->label('Review & Decide'),
             ]);
     }
 }

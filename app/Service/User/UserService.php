@@ -52,9 +52,9 @@ class UserService
                     $q->whereHas('requestDetail', function ($q) {
                         $q->where('status', 'open');
                     })
-                    ->orWhereHas('offerDetail', function ($q) {
-                        $q->where('status', 'active');
-                    });
+                        ->orWhereHas('offerDetail', function ($q) {
+                            $q->where('status', 'active');
+                        });
                 });
             },
             'completedRequestPosts as requested_count',
@@ -104,9 +104,9 @@ class UserService
                     $q->whereHas('requestDetail', function ($q) {
                         $q->where('status', 'open');
                     })
-                    ->orWhereHas('offerDetail', function ($q) {
-                        $q->where('status', 'active');
-                    });
+                        ->orWhereHas('offerDetail', function ($q) {
+                            $q->where('status', 'active');
+                        });
                 });
             },
             'completedRequestPosts as requested_count',
@@ -342,9 +342,9 @@ class UserService
                             $q->whereHas('requestDetail', function ($q) {
                                 $q->where('status', 'open');
                             })
-                            ->orWhereHas('offerDetail', function ($q) {
-                                $q->where('status', 'active');
-                            });
+                                ->orWhereHas('offerDetail', function ($q) {
+                                    $q->where('status', 'active');
+                                });
                         });
                     },
                     'completedRequestPosts as requested_count',
@@ -567,6 +567,7 @@ class UserService
     public function getUserInactiveOfferPosts(string $userId)
     {
         try {
+            $user = User::findOrFail($userId);
             $posts = Post::query()
                 ->where('user_id', $userId)
                 ->where('type', 'offer')
@@ -606,9 +607,21 @@ class UserService
                 return $this->errorPayload('Posts not found', [], 404);
             }
 
+            $user->load([
+                'photoProfile',
+                'province:id,name',
+                'city:id,name',
+                'district:id,name',
+                'village:id,name',
+                'skills:id,title',
+            ]);
+
             return $this->successPayload(
-                $posts,
-                'Inactive offer posts retrieved successfully'
+                [
+                    'user' => $user,
+                    'posts' => $posts,
+                ],
+                'User inactive offer posts retrieved successfully'
             );
         } catch (\Throwable $th) {
             return $this->errorPayload($th->getMessage(), [], 500);

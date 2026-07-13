@@ -61,8 +61,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/posts/search', [PostController::class, 'search']);
     Route::get('/posts/near-me', [PostController::class, 'nearMe']);
     Route::get('/posts/total', [PostController::class, 'getTotalUserPosts']);
-    Route::post('/posts/request', [PostController::class, 'createRequest']);
-    Route::post('/posts/offer', [PostController::class, 'createOffer']);
+    Route::post('/posts/request', [PostController::class, 'createRequest'])->middleware('active_user');
+    Route::post('/posts/offer', [PostController::class, 'createOffer'])->middleware('active_user');
     Route::get('/posts/request', [PostController::class, 'getAllWithRequestDetails']);
     Route::get('/posts/offer', [PostController::class, 'getAllWithOfferDetails']);
     Route::get('/posts/{id}', [PostController::class, 'getById']);
@@ -71,8 +71,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/posts/{id}/update', [PostController::class, 'update']);
     Route::post('/posts/{id}/report', [PostController::class, 'reportPost']);
 
-    Route::post('/posts/apply', [OfferController::class, 'applyForJob']);
-    Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService']);
+    Route::post('/posts/apply', [OfferController::class, 'applyForJob'])->middleware('active_user');
+    Route::post('/posts/book-helper', [OfferController::class, 'bookHelperService'])->middleware('active_user');
 
     Route::get('/addresses/provinces', [AddressController::class, 'getProvinces']);
     Route::get('/addresses/provinces/{provinceId}/cities', [AddressController::class, 'getCitiesByProvince']);
@@ -81,7 +81,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/addresses/match', [AddressController::class, 'matchAddressNames']);
 
     Route::get('/offers/post/{postId}', [OfferController::class, 'getOffersForPost']);
-    Route::post('/offers/accept', [OfferController::class, 'acceptHelper']);
+    Route::post('/offers/accept', [OfferController::class, 'acceptHelper'])->middleware('active_user');
     Route::get('/offers/{offerId}', [OfferController::class, 'show']);
     Route::post('/offers/{offerId}/finalize', [OfferController::class, 'finalizeOffer']);
 

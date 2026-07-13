@@ -159,7 +159,7 @@ class TransactionService
                 $q->where('requester_id', $userId)
                   ->orWhere('helper_id', $userId);
             })
-            ->whereNotIn('status', ['completed', 'refunded', 'cancelled', 'failed'])
+            ->whereNotIn('status', ['completed', 'refunded', 'cancelled', 'failed', 'partially_refunded'])
             ->latest()
             ->get();
 
@@ -325,9 +325,9 @@ class TransactionService
 
                 // Check max revision limit
                 $revisionCount = $transaction->revisions()->count();
-                if ($revisionCount >= $transaction->max_revision) {
+                if ($revisionCount >= 1) {
                     throw ValidationException::withMessages([
-                        'revision' => ['Maximum revision limit (' . $transaction->max_revision . ' times) has been reached. If issues persist, please file a dispute report.']
+                        'revision' => ['Maximum revision limit (1 time) has been reached. If issues persist, please file a dispute report.']
                     ]);
                 }
 
@@ -495,17 +495,25 @@ class TransactionService
                         ]);
                     }
 
-                    // Create report transaction
+                    // Build enriched description with context from both sides
+                    $requesterRevisionNotes = $revision->revision_notes ?? '(no revision notes)';
+                    $helperDeclineReason = $data['dispute_reason'] ?? '(no decline reason)';
+                    $enrichedDescription = "【Revision Request from Requester】\n"
+                        . $requesterRevisionNotes
+                        . "\n\n【Decline Reason from Helper】\n"
+                        . $helperDeclineReason;
+
+                    // Create report transaction with enriched context
                     $report = ReportTransaction::create([
                         'transaction_id' => $transaction->id,
                         'reporter_id' => $helperId,
                         'reported_id' => $transaction->requester_id,
-                        'reason_category' => 'Revision Declined by Helper',
-                        'description' => $data['dispute_reason'],
+                        'reason_category' => 'revision_declined',
+                        'description' => $enrichedDescription,
                         'status' => 'pending',
                     ]);
 
-                    // Store dispute evidence images
+                    // Store dispute evidence images from helper
                     foreach ($uploadedImages as $imageFile) {
                         $path = $imageFile->store('transactions/disputes', 'public');
                         $uploadedPaths[] = $path;
@@ -515,6 +523,30 @@ class TransactionService
                             'file_name' => $imageFile->getClientOriginalName(),
                             'file_type' => $imageFile->getClientMimeType(),
                             'type' => 'dispute_evidence',
+                        ]);
+                    }
+
+                    // Copy revision evidence images from requester to report
+                    $revisionImages = $revision->images ?? collect();
+                    foreach ($revisionImages as $revImg) {
+                        $report->images()->create([
+                            'url' => $revImg->url,
+                            'file_name' => $revImg->file_name ?? 'revision_evidence',
+                            'file_type' => $revImg->file_type ?? 'image/jpeg',
+                            'type' => 'revision_evidence',
+                        ]);
+                    }
+
+                    // Auto-create refund record (as rejected, since helper implicitly refused)
+                    if ($escrow) {
+                        Refund::create([
+                            'transaction_id' => $transaction->id,
+                            'payment_id' => $transaction->payment->id ?? $escrow->payment_id,
+                            'user_id' => $transaction->requester_id,
+                            'amount' => $escrow->held_amount,
+                            'reason' => 'Revision declined by helper – auto-generated dispute refund request. Requester revision notes: ' . $requesterRevisionNotes,
+                            'status' => 'rejected',
+                            'gateway_refund_id' => 'REF-' . strtoupper(uniqid()),
                         ]);
                     }
 
@@ -1190,7 +1222,7 @@ class TransactionService
 
                     // Guard: escrow must be held for refund to proceed
                     if (! $escrow || $escrow->status !== 'held') {
-                        throw new Exception("Escrow tidak valid untuk transaksi {$transaction->id}.");
+                        throw new Exception("Escrow is invalid for transaction {$transaction->id}.");
                     }
 
                     // Guard: avoid duplicate pending refund

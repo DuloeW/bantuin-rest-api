@@ -28,17 +28,17 @@ class ReportTransactionResource extends Resource
 
     public static function getNavigationLabel(): string
     {
-        return 'Dispute Transaksi';
+        return 'Transaction Disputes';
     }
 
     public static function getModelLabel(): string
     {
-        return 'Dispute Transaksi';
+        return 'Transaction Dispute';
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Dispute Transaksi';
+        return 'Transaction Disputes';
     }
 
     public static function getNavigationBadge(): ?string
@@ -64,25 +64,41 @@ class ReportTransactionResource extends Resource
         return $table
             ->recordActions([
                 EditAction::make()
-                    ->label('Tinjau & Putuskan'),
+                    ->label('Review & Decide'),
 
                 Action::make('markInvestigating')
-                    ->label('Mulai Investigasi')
+                    ->label('Start Investigation')
                     ->icon('heroicon-o-magnifying-glass')
                     ->color('warning')
                     ->requiresConfirmation()
-                    ->modalHeading('Mulai Investigasi Laporan?')
-                    ->modalDescription('Status laporan akan diubah menjadi "Investigating". Admin akan mulai meninjau kasus ini.')
+                    ->modalHeading('Start Investigating Report?')
+                    ->modalDescription('The report status will be changed to "Investigating". Admin will begin reviewing this case.')
                     ->action(fn (ReportTransaction $record) => $record->update(['status' => 'investigating']))
                     ->visible(fn (ReportTransaction $record): bool => $record->status === 'pending'),
 
+                Action::make('resolvePartialRefund')
+                    ->label('Resolve: 50/50 Split')
+                    ->icon('heroicon-o-arrows-right-left')
+                    ->color('info')
+                    ->requiresConfirmation()
+                    ->modalHeading('Decide: Split Funds 50/50?')
+                    ->modalDescription('This action will split the remaining escrow balance equally between Requester and Helper. Make sure admin_notes are filled on the edit page.')
+                    ->action(function (ReportTransaction $record) {
+                        $record->update([
+                            'status'      => 'resolved',
+                            'resolved_at' => now(),
+                        ]);
+                        $record->transaction?->update(['status' => 'partial_refund']);
+                    })
+                    ->visible(fn (ReportTransaction $record): bool => in_array($record->status, ['pending', 'investigating'])),
+
                 Action::make('resolveWithRefund')
-                    ->label('Selesaikan: Refund ke Requester')
+                    ->label('Resolve: Refund Requester')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->color('success')
                     ->requiresConfirmation()
-                    ->modalHeading('Putuskan: Refund Dana ke Requester?')
-                    ->modalDescription('Tindakan ini akan menandai laporan sebagai Resolved dan transaksi sebagai Cancelled. Dana escrow akan dikembalikan ke requester. Pastikan admin_notes sudah diisi di halaman edit.')
+                    ->modalHeading('Decide: Refund Funds to Requester?')
+                    ->modalDescription('This action will mark the report as Resolved and the transaction as Cancelled. Escrow funds will be returned to the requester. Make sure admin_notes are filled on the edit page.')
                     ->action(function (ReportTransaction $record) {
                         $record->update([
                             'status'      => 'resolved',
@@ -99,8 +115,8 @@ class ReportTransactionResource extends Resource
                             try {
                                 $notif->sendToUser(
                                     $trx->requester,
-                                    'Dispute Diselesaikan – Refund Disetujui',
-                                    'Admin telah menyelesaikan sengketa untuk "' . $postTitle . '". Dana akan dikembalikan ke akun Anda.',
+                                    'Dispute Resolved – Refund Approved',
+                                    'Admin has resolved the dispute for "' . $postTitle . '". Funds will be returned to your account.',
                                     [
                                         'transaction_id' => (string) $trx->id,
                                         'screen'         => 'dispute_detail',
@@ -117,8 +133,8 @@ class ReportTransactionResource extends Resource
                             try {
                                 $notif->sendToUser(
                                     $trx->helper,
-                                    'Dispute Diselesaikan – Refund ke Requester',
-                                    'Admin telah memutuskan bahwa sengketa untuk "' . $postTitle . '" diselesaikan dengan pengembalian dana ke requester.',
+                                    'Dispute Resolved – Refund to Requester',
+                                    'Admin has decided that the dispute for "' . $postTitle . '" is resolved with a refund to the requester.',
                                     [
                                         'transaction_id' => (string) $trx->id,
                                         'screen'         => 'dispute_detail',
@@ -134,12 +150,12 @@ class ReportTransactionResource extends Resource
                     ->visible(fn (ReportTransaction $record): bool => in_array($record->status, ['pending', 'investigating'])),
 
                 Action::make('resolveNoRefund')
-                    ->label('Selesaikan: Tolak Klaim Requester')
+                    ->label('Resolve: Reject Requester Claim')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalHeading('Putuskan: Tolak Klaim, Dana Tetap ke Helper?')
-                    ->modalDescription('Tindakan ini akan menandai laporan sebagai Resolved. Transaksi tetap Disputed tetapi tidak ada refund. Pastikan admin_notes sudah diisi di halaman edit.')
+                    ->modalHeading('Decide: Reject Claim, Funds Stay with Helper?')
+                    ->modalDescription('This action will mark the report as Resolved. The transaction remains Disputed but there is no refund. Make sure admin_notes are filled on the edit page.')
                     ->action(function (ReportTransaction $record) {
                         $record->update([
                             'status'      => 'resolved',
@@ -155,8 +171,8 @@ class ReportTransactionResource extends Resource
                             try {
                                 $notif->sendToUser(
                                     $trx->requester,
-                                    'Dispute Diselesaikan – Klaim Ditolak',
-                                    'Admin telah meninjau sengketa untuk "' . $postTitle . '". Klaim refund Anda tidak dikabulkan. Silakan cek detail untuk informasi lebih lanjut.',
+                                    'Dispute Resolved – Claim Rejected',
+                                    'Admin has reviewed the dispute for "' . $postTitle . '". Your refund claim is rejected. Please check details for more information.',
                                     [
                                         'transaction_id' => (string) $trx->id,
                                         'screen'         => 'dispute_detail',
@@ -173,8 +189,8 @@ class ReportTransactionResource extends Resource
                             try {
                                 $notif->sendToUser(
                                     $trx->helper,
-                                    'Dispute Diselesaikan – Klaim Requester Ditolak',
-                                    'Admin telah memutuskan bahwa klaim untuk "' . $postTitle . '" tidak dikabulkan. Dana tidak dikembalikan ke requester.',
+                                    'Dispute Resolved – Requester Claim Rejected',
+                                    'Admin has decided that the claim for "' . $postTitle . '" is rejected. Funds are not returned to the requester.',
                                     [
                                         'transaction_id' => (string) $trx->id,
                                         'screen'         => 'dispute_detail',

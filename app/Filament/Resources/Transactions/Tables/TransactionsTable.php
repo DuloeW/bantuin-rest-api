@@ -53,13 +53,13 @@ class TransactionsTable
                     ->searchable(),
 
                 TextColumn::make('deadline')
-                    ->label('Batas Waktu')
+                    ->label('Deadline')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('created_at')
-                    ->label('Dibuat Pada')
+                    ->label('Created At')
                     ->dateTime('d M Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -70,7 +70,7 @@ class TransactionsTable
                         'pending' => 'Pending',
                         'on_progress' => 'On Progress',
                         'completed' => 'Completed',
-                        'disputed' => 'Disputed (Bermasalah)',
+                        'disputed' => 'Disputed',
                         'cancelled' => 'Cancelled',
                     ]),
             ])
@@ -78,14 +78,14 @@ class TransactionsTable
                 ViewAction::make(),
                 EditAction::make(),
                 Action::make('markAsDisputed')
-                    ->label('Tandai Bermasalah')
+                    ->label('Mark as Disputed')
                     ->icon('heroicon-o-exclamation-triangle')
                     ->color('danger')
                     ->requiresConfirmation()
                     ->action(fn (Transaction $record) => $record->update(['status' => 'disputed']))
                     ->visible(fn (Transaction $record): bool => !in_array($record->status, ['completed', 'disputed', 'cancelled'])),
                 Action::make('cancelTransaction')
-                    ->label('Batalkan')
+                    ->label('Cancel')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
                     ->requiresConfirmation()

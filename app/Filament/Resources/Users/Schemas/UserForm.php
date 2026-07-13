@@ -74,8 +74,27 @@ class UserForm
                     ->columns(2)
                     ->schema([
                         Placeholder::make('profile_preview')
+                            ->label('Foto Profil')
                             ->content(function ($record) {
+                                if (! $record) {
+                                    return 'Belum ada foto profil';
+                                }
 
+                                $record->loadMissing('photoProfile');
+
+                                if (! $record->photoProfile) {
+                                    return 'Belum ada foto profil';
+                                }
+
+                                $url = str_starts_with($record->photoProfile->url, 'http')
+                                    ? $record->photoProfile->url
+                                    : Storage::disk('public')->url($record->photoProfile->url);
+
+                                return new HtmlString("
+                                    <a href='{$url}' target='_blank'>
+                                        <img src='{$url}' alt='Foto Profil' style='max-width:200px; max-height:200px; border-radius:8px; object-fit:cover; border:1px solid #444;'>
+                                    </a>
+                                ");
                             }),
                         Placeholder::make('ktp_preview')
                             ->label('Foto KTP')
@@ -87,7 +106,9 @@ class UserForm
                                     return 'Belum ada foto KTP';
                                 }
 
-                                $url = Storage::disk('public')->url($record->ktpPhoto->url);
+                                $url = str_starts_with($record->ktpPhoto->url, 'http')
+                                    ? $record->ktpPhoto->url
+                                    : Storage::disk('public')->url($record->ktpPhoto->url);
 
                                 return new HtmlString("
                                                         <a href='{$url}' target='_blank'>

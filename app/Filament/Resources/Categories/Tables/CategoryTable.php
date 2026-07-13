@@ -11,7 +11,7 @@ class CategoryTable
     {
         return $table->columns([
             TextColumn::make('title')
-                ->label('Judul')
+                ->label('Title')
                 ->searchable()
                 ->sortable(),
 
@@ -21,13 +21,13 @@ class CategoryTable
                 ->color('gray'),
 
             TextColumn::make('posts_count')
-                ->label('Total Postingan')
+                ->label('Total Posts')
                 ->counts('posts') 
                 ->badge()
                 ->color('info'),
 
             TextColumn::make('created_at')
-                ->label('Terdaftar Pada')
+                ->label('Created At')
                 ->dateTime()
                 ->sortable()
                 ->toggleable(isToggledHiddenByDefault: true),

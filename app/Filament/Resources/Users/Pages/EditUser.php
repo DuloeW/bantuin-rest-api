@@ -25,16 +25,16 @@ class EditUser extends EditRecord
             if ($this->record->is_verified) {
                 $notificationService->sendToUser(
                     $this->record,
-                    'Verifikasi Berhasil',
-                    'Selamat! Akun Anda telah berhasil diverifikasi oleh admin.',
+                    'Verification Successful',
+                    'Congratulations! Your account has been successfully verified by admin.',
                     ['type' => 'account_verified'],
                     'account_verified'
                 );
             } else {
                 $notificationService->sendToUser(
                     $this->record,
-                    'Verifikasi Dicabut',
-                    'Status verifikasi akun Anda telah dicabut oleh admin.',
+                    'Verification Revoked',
+                    'Your account verification status has been revoked by admin.',
                     ['type' => 'account_unverified'],
                     'account_unverified'
                 );

@@ -21,7 +21,7 @@ class TransactionsResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
     public static function getNavigationLabel(): string
     {
-        return 'Audit Transaksi';
+        return 'Transaction Audit';
     }
 
     public static function getNavigationGroup(): ?string
@@ -31,12 +31,12 @@ class TransactionsResource extends Resource
 
     public static function getModelLabel(): string
     {
-        return 'Transaksi';
+        return 'Transaction';
     }
 
     public static function getPluralModelLabel(): string
     {
-        return 'Audit Transaksi';
+        return 'Transaction Audit';
     }
     
     public static function canCreate(): bool

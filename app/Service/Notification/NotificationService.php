@@ -2,6 +2,7 @@
 
 namespace App\Service\Notification;
 
+use App\Models\DeviceToken;
 use App\Models\Notification;
 use App\Models\User;
 use App\Traits\ServiceResponse;
@@ -84,17 +85,33 @@ class NotificationService
                     ]);
 
                     foreach ($tokens as $token) {
-                        $message = CloudMessage::new()
-                            ->withToken($token)
-                            ->withNotification($notification)
-                            ->withAndroidConfig($androidConfig)
-                            ->withApnsConfig($apnsConfig)
-                            ->withData($fcmData);
+                        try {
+                            $message = CloudMessage::new()
+                                ->withToken($token)
+                                ->withNotification($notification)
+                                ->withAndroidConfig($androidConfig)
+                                ->withApnsConfig($apnsConfig)
+                                ->withData($fcmData);
 
-                        $this->messaging->send($message);
+                            $this->messaging->send($message);
+                        } catch (Exception $e) {
+                            Log::warning("Firebase send error for token [{$token}]: " . $e->getMessage());
+
+                            // Jika token sudah tidak valid / unregistered di Firebase, hapus dari database agar tidak mengganggu berikutnya
+                            $errorMessage = strtolower($e->getMessage());
+                            if (
+                                str_contains($errorMessage, 'notfound') ||
+                                str_contains($errorMessage, 'unregistered') ||
+                                str_contains($errorMessage, 'invalid_argument') ||
+                                str_contains($errorMessage, 'registration-token-not-registered')
+                            ) {
+                                DeviceToken::where('device_token', $token)->delete();
+                                Log::info("Expired/invalid device token removed: {$token}");
+                            }
+                        }
                     }
                 } catch (Exception $e) {
-                    Log::error('Firebase send error: ' . $e->getMessage());
+                    Log::error('Firebase messaging error: ' . $e->getMessage());
                 }
             }
 

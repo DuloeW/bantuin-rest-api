@@ -12,11 +12,11 @@ class CategoryForm
     public static function configure(Schema $schema): Schema
     {
         return $schema->components([
-            Section::make('Informasi Kategori')
-                ->description('Gunakan bagian ini untuk menentukan kategori jasa atau postingan.')
+            Section::make('Category Information')
+                ->description('Use this section to define service or post categories.')
                 ->schema([
                     TextInput::make('title')
-                        ->label('Judul Kategori')
+                        ->label('Category Title')
                         ->required()
                         ->maxLength(255)
                         ->live(onBlur: true)
