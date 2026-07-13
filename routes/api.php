@@ -5,7 +5,9 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BankAccount\BankAccountController;
 use App\Http\Controllers\Api\Category\CategoryController;
 use App\Http\Controllers\Api\Message\MessageController;
+use App\Http\Controllers\Api\Notification\DeviceTokenController;
 use App\Http\Controllers\Api\Notification\NotificationController;
+use App\Http\Controllers\Api\Notification\PushNotificationController;
 use App\Http\Controllers\Api\Offer\OfferController;
 use App\Http\Controllers\Api\Payment\PaymentController;
 use App\Http\Controllers\Api\Post\PostController;
@@ -14,10 +16,7 @@ use App\Http\Controllers\Api\Transaction\TransactionController;
 use App\Http\Controllers\Api\User\UserController;
 use App\Http\Controllers\Api\User\UserSkillController;
 use App\Http\Controllers\Api\Withdrawal\WithdrawalController;
-use App\Http\Controllers\Api\Notification\DeviceTokenController;
-use App\Http\Controllers\Api\Notification\PushNotificationController;
 use Illuminate\Support\Facades\Route;
-
 
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
@@ -28,7 +27,7 @@ Route::post('/notifications/test-direct', [PushNotificationController::class, 't
 
 Route::middleware('auth:sanctum')->group(function () {
 
-    Route::post('/logout', [AuthController::class,'logout']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 
     Route::get('/user/skills', [UserSkillController::class, 'index']);
     Route::post('/user/skills', [UserSkillController::class, 'store']);
