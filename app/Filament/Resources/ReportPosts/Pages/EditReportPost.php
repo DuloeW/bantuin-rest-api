@@ -23,19 +23,16 @@ class EditReportPost extends EditRecord
     {
         $report = $this->record;
 
-        // Cek jika status berubah
         if ($report->wasChanged('status')) {
             $reporter = $report->reporter;
 
             if ($reporter) {
                 try {
-                    $postTitle = $report->post->title ?? 'Postingan';
-
                     if ($report->status === 'investigating') {
                         app(NotificationService::class)->sendToUser(
                             $reporter,
-                            'Laporan Sedang Diproses',
-                            'Laporan Anda terhadap postingan "'.$postTitle.'" sedang dalam tahap investigasi oleh tim kami.',
+                            'Your report has been received',
+                            'Thank you for reporting this post. Our team is investigating it and will take appropriate action based on our community guidelines.',
                             [
                                 'post_id' => (string) $report->post_id,
                             ],
@@ -44,8 +41,8 @@ class EditReportPost extends EditRecord
                     } elseif ($report->status === 'resolved') {
                         app(NotificationService::class)->sendToUser(
                             $reporter,
-                            'Laporan Selesai Diproses',
-                            'Investigasi terhadap laporan Anda pada postingan "'.$postTitle.'" telah selesai. Terima kasih atas laporan Anda.',
+                            'Your report has been resolved',
+                            'Our team has investigated your report and taken appropriate action. Thank you for helping us keep the community safe.',
                             [
                                 'post_id' => (string) $report->post_id,
                             ],
@@ -53,7 +50,7 @@ class EditReportPost extends EditRecord
                         );
                     }
                 } catch (\Exception $e) {
-                    Log::error('Failed to send report post notification: '.$e->getMessage());
+                    Log::error('Failed to send report post notification: ' . $e->getMessage());
                 }
             }
         }
