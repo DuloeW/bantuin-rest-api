@@ -2,20 +2,20 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
+#[Guarded([])]
 class Payment extends Model
 {
     use HasUuids;
 
-    protected $guarded = [];
-
     protected $casts = [
-        'amount'   => 'decimal:2',
-        'paid_at'  => 'datetime',
+        'amount' => 'decimal:2',
+        'paid_at' => 'datetime',
     ];
 
     public function transaction(): BelongsTo

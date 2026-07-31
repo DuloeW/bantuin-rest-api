@@ -2,23 +2,31 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+#[Fillable([
+    'user_id',
+    'title',
+    'body',
+    'data',
+    'type',
+    'is_read',
+])]
 class Notification extends Model
 {
     use HasUuids;
-
-    protected $fillable = ['user_id', 'title', 'body', 'data', 'type', 'is_read'];
 
     protected $casts = [
         'data' => 'json',
         'is_read' => 'boolean',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }

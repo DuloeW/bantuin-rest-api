@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -74,17 +75,17 @@ class Transaction extends Model
         return $this->morphMany(Image::class, 'imageable')->where('type', 'completion');
     }
 
-    public function revisions(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function revisions(): HasMany
     {
         return $this->hasMany(TransactionRevision::class);
     }
 
-    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function reviews(): HasMany
     {
         return $this->hasMany(Review::class, 'transaction_id');
     }
 
-    public function refunds(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function refunds(): HasMany
     {
         return $this->hasMany(Refund::class);
     }

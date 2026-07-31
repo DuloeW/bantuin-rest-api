@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Laravolt\Indonesia\Models\City;
 use Laravolt\Indonesia\Models\District;
 use Laravolt\Indonesia\Models\Province;
@@ -20,27 +21,27 @@ class OfferPost extends Model
 
     protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
 
-    public function post()
+    public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);
     }
 
-    public function province()
+    public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class, 'province_id');
     }
 
-    public function city()
+    public function city(): BelongsTo
     {
         return $this->belongsTo(City::class, 'city_id');
     }
 
-    public function district()
+    public function district(): BelongsTo
     {
         return $this->belongsTo(District::class, 'district_id');
     }
 
-    public function village()
+    public function village(): BelongsTo
     {
         return $this->belongsTo(Village::class, 'village_id');
     }

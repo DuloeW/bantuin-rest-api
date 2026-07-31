@@ -3,13 +3,24 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Guarded;
+use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Laravolt\Indonesia\Models\City;
 use Laravolt\Indonesia\Models\District;
 use Laravolt\Indonesia\Models\Province;
 use Laravolt\Indonesia\Models\Village;
 
 #[Guarded([])]
+#[Hidden([
+    'location',
+    'longitude',
+    'latitude',
+    'province_id',
+    'city_id',
+    'district_id',
+    'village_id',
+])]
 class RequestPost extends Model
 {
     protected $primaryKey = 'post_id';
@@ -17,35 +28,33 @@ class RequestPost extends Model
     protected $keyType = 'string';
     protected $appends = ['location_coordinate'];
 
-    protected $hidden = ['location', 'longitude', 'latitude', 'province_id', 'city_id', 'district_id', 'village_id'];
-
     protected $casts = [
         'deadline' => 'datetime',
         'published_at' => 'datetime',
         'published_until' => 'datetime',
     ];
 
-    public function post()
+    public function post(): BelongsTo
     {
         return $this->belongsTo(Post::class);
     }
 
-    public function province()
+    public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class, 'province_id');
     }
 
-    public function city()
+    public function city(): BelongsTo
     {
         return $this->belongsTo(City::class, 'city_id');
     }
 
-    public function district()
+    public function district(): BelongsTo
     {
         return $this->belongsTo(District::class, 'district_id');
     }
 
-    public function village()
+    public function village(): BelongsTo
     {
         return $this->belongsTo(Village::class, 'village_id');
     }

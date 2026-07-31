@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Attributes\Guarded;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -36,11 +40,6 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     protected $keyType = 'string';
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -49,7 +48,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         ];
     }
 
-    public function posts()
+    public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
     }
@@ -63,52 +62,52 @@ class User extends Authenticatable implements FilamentUser, HasName
             });
     }
 
-    public function helpedTransactions()
+    public function helpedTransactions(): HasMany
     {
         return $this->hasMany(Transaction::class, 'helper_id')->where('status', 'completed');
     }
 
-    public function skills()
+    public function skills(): BelongsToMany
     {
         return $this->belongsToMany(Skill::class, 'skill_users', 'user_id', 'skill_id');
     }
 
-    public function offers()
+    public function offers(): HasMany
     {
         return $this->hasMany(Offer::class);
     }
 
-    public function bankAccounts()
+    public function bankAccounts(): HasMany
     {
         return $this->hasMany(BankAccount::class);
     }
 
-    public function primaryBankAccount()
+    public function primaryBankAccount(): HasOne
     {
         return $this->hasOne(BankAccount::class)->where('is_primary', true);
     }
 
-    public function deviceTokens()
+    public function deviceTokens(): HasMany
     {
         return $this->hasMany(DeviceToken::class);
     }
 
-    public function transactionsAsRequester()
+    public function transactionsAsRequester(): HasMany
     {
         return $this->hasMany(Transaction::class, 'requester_id');
     }
 
-    public function transactionsAsHelper()
+    public function transactionsAsHelper(): HasMany
     {
         return $this->hasMany(Transaction::class, 'helper_id');
     }
 
-    public function reviewReceived()
+    public function reviewReceived(): HasMany
     {
         return $this->hasMany(Review::class, 'reviewed_id');
     }
 
-    public function reviewGiven()
+    public function reviewGiven(): HasMany
     {
         return $this->hasMany(Review::class, 'reviewer_id');
     }
@@ -129,22 +128,22 @@ class User extends Authenticatable implements FilamentUser, HasName
             });
     }
 
-    public function province()
+    public function province(): BelongsTo
     {
         return $this->belongsTo(Province::class);
     }
 
-    public function city()
+    public function city(): BelongsTo
     {
         return $this->belongsTo(City::class);
     }
 
-    public function district()
+    public function district(): BelongsTo
     {
         return $this->belongsTo(District::class);
     }
 
-    public function village()
+    public function village(): BelongsTo
     {
         return $this->belongsTo(Village::class);
     }
